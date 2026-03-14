@@ -59,9 +59,25 @@ This is your roadmap to building the Memory App, designed specifically for you a
 
 ## Phase 8: Bug Fixes & UX Polish
 
-- [ ] **Task 28: Audio Playback in Edit.** Use unique filenames for voice memos so they don't overwrite, and enable playback on the edit screen.
-- [ ] **Task 29: Persistent Photo Storage.** Copy selected photos to internal app storage rather than storing temporary URIs.
-- [ ] **Task 30: Unsaved Changes Dialog.** Intercept back/close actions to confirm discarding unsaved edits.
-- [ ] **Task 31: Absolute Theme Enforcement.** Map all Material 3 typography tokens to custom fonts and replace standard M3 elevations with custom soft shadows to perfectly match `design.md`.
+- [x] **Task 28: Audio Playback in Edit.** Use unique filenames for voice memos so they don't overwrite, and enable playback on the edit screen.
+- [x] **Task 29: Persistent Photo Storage.** Copy selected photos to internal app storage rather than storing temporary URIs.
+- [x] **Task 30: Unsaved Changes Dialog.** Intercept back/close actions to confirm discarding unsaved edits.
+- [x] **Task 31: Absolute Theme Enforcement.** Map all Material 3 typography tokens to custom fonts and replace standard M3 elevations with custom soft shadows to perfectly match `design.md`.
+
+## Phase 9: Premium UI — Instagram & Spotify Mechanics
+
+- [ ] **Task 32: Instagram-Style Full-Screen Memory Detail View.**
+  - Create a new `DetailScreen` composable that opens when a memory card is tapped (instead of jumping directly to edit mode).
+  - Layout: photo or animated gradient fills ~70% of screen height at top; text content scrolls below.
+  - For memories without a photo: show an animated blurred gradient background using the emotional tone color.
+  - An Edit button in the top-right corner navigates to the existing `CaptureScreen` in edit mode.
+  - ⚠️ **Requires user clarity before execution:** How should the back gesture behave — swipe down (Instagram-style) or standard back button? Should the gradient animation be subtle parallax or a slow color pulse?
+
+- [ ] **Task 33: Spotify-Style Persistent Audio Player.**
+  - Build a globally-visible floating bottom bar that appears over the Scaffold (above the FAB) whenever an audio memo is actively playing.
+  - Must include: Play/Pause button, audio title/source memory name, a scrubber bar showing progress, and elapsed/total time.
+  - Background: Glassmorphism effect — semi-translucent (`~85% opacity`) surface with Warm Paper tint, matching `design.md`.
+  - Player persists and follows the user even if they navigate between `DiaryScreen` and `IndexScreen`.
+  - ⚠️ **Requires user clarity before execution:** Should tapping the bar expand it into a full Spotify-style "Now Playing" sheet, or just control play/pause inline?
 
 > **CRITICAL RULE FOR ALL FUTURE DEVELOPMENT:** Do not assume implementation details. If a dependency, UI layout, or technical approach is ambiguous, you MUST ask the user for clarity before executing code.

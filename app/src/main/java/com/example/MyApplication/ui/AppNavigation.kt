@@ -3,10 +3,10 @@ package com.example.myapplication.ui
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -27,10 +27,11 @@ enum class Screen {
 fun AppNavigation(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     val context = LocalContext.current
+    val application = remember { context.applicationContext as android.app.Application }
 
     // Set up database and repository once for the whole nav graph
-    val db = AppDatabase.getDatabase(context)
-    val repository = MemoryRepository(db.memoryDao())
+    val db = com.example.myapplication.data.database.AppDatabase.getDatabase(context)
+    val repository = com.example.myapplication.data.repository.MemoryRepository(db.memoryDao())
 
     // DiaryViewModel shared between DiaryScreen and IndexScreen
     val diaryViewModel: DiaryViewModel = viewModel(
@@ -57,7 +58,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             ) { backStackEntry ->
                 val memoryId = backStackEntry.arguments?.getString("memoryId")
                 val captureViewModel: CaptureViewModel = viewModel(
-                    factory = CaptureViewModel.Factory(repository)
+                    factory = CaptureViewModel.Factory(application, repository)
                 )
                 CaptureScreen(
                     memoryId = memoryId,

@@ -1,5 +1,6 @@
 package com.example.myapplication.util
 
+import android.media.AudioAttributes
 import android.media.MediaPlayer
 
 class AudioPlayer {
@@ -11,6 +12,12 @@ class AudioPlayer {
     fun playFile(path: String, onCompletion: () -> Unit) {
         mediaPlayer = MediaPlayer().apply {
             try {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .build()
+                )
                 setDataSource(path)
                 prepare()
                 start()

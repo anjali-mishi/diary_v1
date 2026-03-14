@@ -1,5 +1,6 @@
 package com.example.myapplication.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -78,6 +79,35 @@ import com.example.myapplication.util.AudioRecorder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+@Composable
+fun Modifier.appleShadow(cornerRadius: Dp = 100.dp): Modifier {
+    return this.drawBehind {
+        drawIntoCanvas { canvas ->
+            val paint = Paint().apply {
+                asFrameworkPaint().apply {
+                    isAntiAlias = true
+                    color = android.graphics.Color.WHITE // Solid color required to cast shadow
+                    setShadowLayer(
+                        24f,   // blur radius (px)
+                        0f,    // x offset
+                        6f,    // y offset
+                        android.graphics.Color.argb(18, 0, 0, 0) // ~7% black
+                    )
+                }
+            }
+            canvas.drawRoundRect(
+                left = 0f,
+                top = 0f,
+                right = size.width,
+                bottom = size.height,
+                radiusX = cornerRadius.toPx(),
+                radiusY = cornerRadius.toPx(),
+                paint = paint
+            )
+        }
+    }
+}
 
 @Composable
 fun DiaryScreen(
@@ -190,11 +220,12 @@ fun DiaryScreen(
             onClick = onNavigateToCapture,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(24.dp),
+                .padding(24.dp)
+                .appleShadow(100.dp), // Apple shadow
             shape = CircleShape,
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
+            elevation = FloatingActionButtonDefaults.elevation(0.dp) // Strip material elevation
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
@@ -232,32 +263,7 @@ fun MemoryCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            // Apple-style soft shadow: low opacity, high blur, slight y-offset
-            .drawBehind {
-                drawIntoCanvas { canvas ->
-                    val paint = Paint().apply {
-                        asFrameworkPaint().apply {
-                            isAntiAlias = true
-                            color = android.graphics.Color.TRANSPARENT
-                            setShadowLayer(
-                                24f,   // blur radius (px)
-                                0f,    // x offset
-                                6f,    // y offset
-                                android.graphics.Color.argb(18, 0, 0, 0) // ~7% black
-                            )
-                        }
-                    }
-                    canvas.drawRoundRect(
-                        left = 0f,
-                        top = 0f,
-                        right = size.width,
-                        bottom = size.height,
-                        radiusX = 32.dp.toPx(),
-                        radiusY = 32.dp.toPx(),
-                        paint = paint
-                    )
-                }
-            }
+            .appleShadow(32.dp)
             .clip(cardShape)
             .background(Color.White)
             .combinedClickable(
@@ -394,9 +400,16 @@ fun CaptureScreen(
     var selectedPhotoUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var recordedAudioUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var isRecording by remember { mutableStateOf(false) }
+    var isAudioPlaying by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val audioRecorder = remember { AudioRecorder(context) }
+    val audioPlayer = remember { AudioPlayer() }
+
+    // Release player if user leaves screen
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { audioPlayer.release() }
+    }
 
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
         contract = RequestPermission(),
@@ -415,14 +428,59 @@ fun CaptureScreen(
         onResult = { uri -> uri?.let { selectedPhotoUri = it.toString() } }
     )
 
+    // ─── Original state (used for dirty-check) ───────────────────────────────
+    var originalText by remember { mutableStateOf("") }
+    var originalPhotoUri by remember { mutableStateOf<String?>(null) }
+    var originalAudioUri by remember { mutableStateOf<String?>(null) }
+
+    // ─── Dirty flag and discard-dialog visibility ─────────────────────────────
+    val isDirty = textContent != originalText
+            || selectedPhotoUri != originalPhotoUri
+            || recordedAudioUri != originalAudioUri
+    var showDiscardDialog by remember { mutableStateOf(false) }
+
+    // Helper – gate back navigation on dirtiness
+    val handleBack = {
+        if (isDirty) showDiscardDialog = true else onNavigateBack()
+    }
+
+    // Intercept hardware/gesture back
+    BackHandler(enabled = true) { handleBack() }
+
+    // Load existing memory data when editing
     androidx.compose.runtime.LaunchedEffect(memoryId) {
         if (memoryId != null) {
             viewModel.loadMemory(memoryId) { existingMemory ->
-                textContent = existingMemory.textContent ?: ""
-                selectedPhotoUri = existingMemory.photoFilePath
-                recordedAudioUri = existingMemory.audioFilePath
+                val t = existingMemory.textContent ?: ""
+                val p = existingMemory.photoFilePath
+                val a = existingMemory.audioFilePath
+                textContent = t
+                selectedPhotoUri = p
+                recordedAudioUri = a
+                originalText = t
+                originalPhotoUri = p
+                originalAudioUri = a
             }
         }
+    }
+
+    // ─── Discard confirmation dialog ──────────────────────────────────────────
+    if (showDiscardDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("Discard changes?") },
+            text = { Text("You have unsaved changes. Are you sure you want to leave?") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = onNavigateBack) {
+                    Text("Discard", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showDiscardDialog = false }) {
+                    Text("Keep Editing")
+                }
+            }
+        )
     }
 
     Column(
@@ -437,7 +495,7 @@ fun CaptureScreen(
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onNavigateBack) {
+            IconButton(onClick = { handleBack() }) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Close",
@@ -517,7 +575,7 @@ fun CaptureScreen(
             }
         }
 
-        // Optional Audio Preview (Moved to top)
+        // Optional Audio Preview with play/stop
         if (recordedAudioUri != null) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -526,27 +584,48 @@ fun CaptureScreen(
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Mic,
-                    contentDescription = "Recorded Audio",
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                // Play / Stop button
+                IconButton(
+                    onClick = {
+                        if (isAudioPlaying) {
+                            audioPlayer.stop()
+                            isAudioPlaying = false
+                        } else {
+                            audioPlayer.playFile(recordedAudioUri!!) {
+                                isAudioPlaying = false
+                            }
+                            isAudioPlaying = true
+                        }
+                    },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isAudioPlaying) Icons.Default.Close else Icons.Default.PlayArrow,
+                        contentDescription = if (isAudioPlaying) "Stop" else "Play memo",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Voice Memo Attached",
+                    text = if (isAudioPlaying) "Playing..." else "Voice Memo",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
+                // Remove button
                 IconButton(
-                    onClick = { recordedAudioUri = null },
+                    onClick = {
+                        audioPlayer.stop()
+                        isAudioPlaying = false
+                        recordedAudioUri = null
+                    },
                     modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Remove audio",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.secondary
                     )
                 }
             }
@@ -603,13 +682,11 @@ fun CaptureScreen(
                         }
                     }
                 },
+                modifier = Modifier.appleShadow(100.dp),
                 shape = androidx.compose.foundation.shape.CircleShape,
                 containerColor = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.surface,
                 contentColor = if (isRecording) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onSurface,
-                elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 2.dp,
-                    pressedElevation = 4.dp
-                )
+                elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
             ) {
                 Icon(
                     imageVector = if (isRecording) Icons.Default.Close else Icons.Default.Mic,
@@ -623,13 +700,11 @@ fun CaptureScreen(
                 onClick = { 
                     photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) 
                 },
+                modifier = Modifier.appleShadow(100.dp),
                 shape = androidx.compose.foundation.shape.CircleShape,
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface,
-                elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 2.dp,
-                    pressedElevation = 4.dp
-                )
+                elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Image,

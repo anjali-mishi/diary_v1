@@ -12,8 +12,9 @@ class AudioRecorder(private val context: Context) {
     private var currentOutputFile: File? = null
 
     fun startRecording() {
-        // Create a temporary file in the cache directory
-        currentOutputFile = File(context.cacheDir, "audio_record_${System.currentTimeMillis()}.m4a")
+        // Save to filesDir (persistent) not cacheDir (erasable by Android)
+        val audioDir = File(context.filesDir, "audio_memos").also { it.mkdirs() }
+        currentOutputFile = File(audioDir, "memo_${System.currentTimeMillis()}.m4a")
 
         recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             MediaRecorder(context)
