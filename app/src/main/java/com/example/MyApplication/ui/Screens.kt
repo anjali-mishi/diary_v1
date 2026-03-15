@@ -175,8 +175,8 @@ fun DiaryScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 24.dp), // Increased horizontal whitespace (Apple-style margins)
+                verticalArrangement = Arrangement.spacedBy(20.dp) // Wider gap between cards
             ) {
                 item { Spacer(modifier = Modifier.height(80.dp)) } // Top padding for header
                 items(memories) { memory ->
@@ -289,7 +289,7 @@ fun MemoryCard(
 
         Row(
             modifier = Modifier
-                .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 18.dp)
+                .padding(24.dp) // Generous internal padding for the bouncy glass card feel
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
