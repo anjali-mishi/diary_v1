@@ -142,7 +142,7 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Remove the existing `TextButton` Save from the top bar; replace its slot with `Spacer` so the Close button remains left-aligned.
   - Save logic in `CaptureViewModel.kt:36–78` remains unchanged.
 
-- [ ] **Task 41: Waveform Recording Visualizer — Bottom-Aligned & Thin Bars.**
+- [x] **Task 41: Waveform Recording Visualizer — Bottom-Aligned & Thin Bars.**
   - Adjust the animated waveform from Task 39 so bars are **bottom-aligned** (grow upward from a fixed baseline) rather than center-aligned (current implementation grows from center).
   - Each bar must be exactly **4dp wide** (thin lines), with equal gaps between them.
   - Keep all other waveform behavior (amplitude polling, orange→pink gradient, fade-out on stop) unchanged.
