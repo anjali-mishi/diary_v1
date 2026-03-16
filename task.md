@@ -102,7 +102,7 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Typography: `MaterialTheme.typography.headlineMedium`, muted/secondary color so it doesn't compete with user input.
   - Reference: top bar area in `Screens.kt:492–524`.
 
-- [ ] **Task 37: Quick Starter Suggestion Chips (Empty State).**
+- [x] **Task 37: Quick Starter Suggestion Chips (Empty State).**
   - When `textContent` is blank, show a horizontal scrollable row of pre-written prompt chips to help the user get started.
   - Chip examples: *"Today I felt…"*, *"Something I'm grateful for…"*, *"A moment I want to remember…"*, *"I was surprised by…"*
   - Tapping a chip inserts its text into `textContent` and hides the chip row.
