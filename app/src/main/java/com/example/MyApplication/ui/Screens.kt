@@ -466,8 +466,8 @@ fun MemoryCard(
                             }
                     ) {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Default.Close else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Stop" else "Play",
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Pause" else "Play",
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -946,8 +946,8 @@ fun CaptureScreen(
                             modifier = Modifier.size(28.dp)
                         ) {
                             Icon(
-                                imageVector = if (isAudioPlaying) Icons.Default.Close else Icons.Default.PlayArrow,
-                                contentDescription = if (isAudioPlaying) "Stop" else "Play memo",
+                                imageVector = if (isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isAudioPlaying) "Pause" else "Play memo",
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
