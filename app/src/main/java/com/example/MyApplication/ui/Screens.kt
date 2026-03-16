@@ -8,9 +8,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -143,11 +145,12 @@ fun DiaryScreen(
         )
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        val sheetHeight = maxHeight * 0.15f
         // Empty state — centered in full screen, behind header and sheet
         if (memories.isEmpty()) {
             Column(
@@ -215,12 +218,31 @@ fun DiaryScreen(
             )
         }
 
+        // Soft gradient strip — 30dp tall, sits immediately above the sheet
+        // Fades from transparent at top to a warm orange→pink at the sheet edge
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(30.dp)
+                .offset(y = -sheetHeight)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color(0x44FFB280), // soft orange, semi-transparent
+                            Color(0xAAFFA8C0), // soft pink, mostly opaque
+                        )
+                    )
+                )
+        )
+
         // Persistent capture entry sheet — always 15% of screen height, never dismissible
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .fillMaxHeight(0.15f)
+                .height(sheetHeight)
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .background(MaterialTheme.colorScheme.surface)
                 .clickable { onNavigateToCapture() },

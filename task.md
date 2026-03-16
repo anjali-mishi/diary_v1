@@ -82,7 +82,7 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - `CaptureScreen` slides in from bottom to top (upward motion) covering 100% of the screen.
   - Use Compose `AnimatedVisibility` or `ModalBottomSheet` with a custom enter transition for the slide-up effect.
 
-- [ ] **Task 35: Soft Gradient Above the Sheet.**
+- [x] **Task 35: Soft Gradient Above the Sheet.**
   - Render a 30px tall gradient strip immediately above the sheet (between the diary list and the sheet edge).
   - Gradient colors: soft orange → pink, fully transparent at the top edge, opaque at the sheet edge.
   - This gradient does NOT blur the diary content — the 80% of screen above it remains 100% visible and unaffected.
