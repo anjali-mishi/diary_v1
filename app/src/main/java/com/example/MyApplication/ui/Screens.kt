@@ -155,7 +155,7 @@ fun DiaryScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(32.dp),
+                    .padding(start = 32.dp, end = 32.dp, top = 32.dp, bottom = sheetHeight + 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
