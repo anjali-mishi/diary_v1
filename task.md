@@ -89,3 +89,47 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Implement as a `Box` with `Brush.verticalGradient` overlaid at the bottom of the diary area.
 
 > **CRITICAL RULE FOR ALL FUTURE DEVELOPMENT:** Do not assume implementation details. If a dependency, UI layout, or technical approach is ambiguous, you MUST ask the user for clarity before executing code.
+
+## Phase 10: CaptureScreen UI Enhancements
+
+- [ ] **Task 36: Screen Title.**
+  - Add a title **"Add a memory"** at the top of `CaptureScreen`, below the close-button row and above the text input.
+  - Typography: `MaterialTheme.typography.headlineMedium`, muted/secondary color so it doesn't compete with user input.
+  - Reference: top bar area in `Screens.kt:492–524`.
+
+- [ ] **Task 37: Quick Starter Suggestion Chips (Empty State).**
+  - When `textContent` is blank, show a horizontal scrollable row of pre-written prompt chips to help the user get started.
+  - Chip examples: *"Today I felt…"*, *"Something I'm grateful for…"*, *"A moment I want to remember…"*, *"I was surprised by…"*
+  - Tapping a chip inserts its text into `textContent` and hides the chip row.
+  - Chip row disappears automatically once `textContent.isNotBlank()`.
+  - Implement as a `LazyRow` of `SuggestionChip` (Material 3). No backend or ML — static list only.
+
+- [ ] **Task 38: Inline Auto-Suggestions (Predictive Text Chips).**
+  - As the user types, show 2–3 short predictive continuation chips in a strip **above the keyboard area** (between the text field and the mic/photo FABs).
+  - Suggestions are **rule-based only** — no ML or external API:
+    - Match the last few words of `textContent` against a small curated map of diary sentence starters → likely continuations.
+    - Example: "Today I felt" → suggests *"happy"*, *"overwhelmed"*, *"at peace"*.
+    - Example: "I want to remember" → suggests *"this moment"*, *"how it felt"*, *"every detail"*.
+  - Tapping a chip appends the suggestion to `textContent`.
+  - If no pattern matches, render an empty row (no visible strip).
+  - Implement as a `Row` of `FilterChip` or plain styled `Text` buttons.
+
+- [ ] **Task 39: Waveform Audio Recording Visualizer.**
+  - Replace the current "red dot + Recording Voice Memo…" text indicator (`Screens.kt:529–542`) with an animated waveform bar visualizer.
+  - Waveform: a row of vertical bars that animate (height varies) while `isRecording == true`.
+  - Bar heights: driven by `MediaRecorder.maxAmplitude` if wired in `AudioRecorder.kt`; otherwise simulated with random variation on a ~60ms timer using `LaunchedEffect`.
+  - Bar colors: gradient from orange → pink, matching the sheet gradient from Task 35.
+  - When recording stops, bars freeze briefly then fade out.
+  - Implement using `Canvas` composable with `drawRect` for bars.
+  - Does not change the audio preview row (play/stop) shown after recording ends.
+
+- [ ] **Task 40: Floating Bottom-Aligned "Save memory" CTA.**
+  - Move the Save action from the top-right `TextButton` (`Screens.kt:506–520`) to a **full-width floating button at the bottom of the screen**.
+  - Button design:
+    - Full-width with 24dp horizontal padding.
+    - Filled `Button` (Material 3 primary color) with label **"Save memory"**.
+    - Soft apple-style shadow matching existing FAB shadows in the codebase.
+    - Positioned above the mic/photo FAB row using a `Box` with `Alignment.BottomCenter` or `Scaffold` `bottomBar`.
+  - Visibility: same conditional as current Save button — only shown when any content exists (`textContent.isNotBlank() || selectedPhotoUri != null || recordedAudioUri != null`).
+  - Remove the existing `TextButton` Save from the top bar; replace its slot with `Spacer` so the Close button remains left-aligned.
+  - Save logic in `CaptureViewModel.kt:36–78` remains unchanged.
