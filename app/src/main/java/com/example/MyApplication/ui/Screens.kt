@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,15 +26,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
@@ -145,11 +143,13 @@ fun DiaryScreen(
         )
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        val sheetHeight = maxHeight * 0.2f
+
         if (memories.isEmpty()) {
             // Empty state
             Column(
@@ -166,7 +166,7 @@ fun DiaryScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Tap + to capture your first memory.",
+                    text = "Tap below to capture your first memory.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.secondary
                 )
@@ -186,7 +186,7 @@ fun DiaryScreen(
                         onLongClick = { memoryToEditOrDelete = memory }
                     )
                 }
-                item { Spacer(modifier = Modifier.height(80.dp)) } // Bottom padding for FAB
+                item { Spacer(modifier = Modifier.height(sheetHeight + 16.dp)) } // Clear the persistent sheet
             }
         }
 
@@ -215,23 +215,15 @@ fun DiaryScreen(
             )
         }
 
-        // FAB to capture new memory
-        FloatingActionButton(
-            onClick = onNavigateToCapture,
+        // Persistent capture entry sheet — always 20% of screen, never dismissible
+        Box(
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(24.dp)
-                .appleShadow(100.dp), // Apple shadow
-            shape = CircleShape,
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            elevation = FloatingActionButtonDefaults.elevation(0.dp) // Strip material elevation
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Add Memory"
-            )
-        }
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(sheetHeight)
+                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .background(MaterialTheme.colorScheme.surface)
+        )
     }
 }
 
