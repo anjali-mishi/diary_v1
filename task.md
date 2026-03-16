@@ -66,17 +66,17 @@ This is your roadmap to building the Memory App, designed specifically for you a
 
 ## Phase 9: Capture Entry Point — Persistent Bottom Sheet
 
-- [ ] **Task 32: Replace FAB with Persistent Bottom Sheet.**
-  - Remove the existing black `+` FAB button entirely.
-  - Add a persistent bottom sheet that always occupies the bottom 20% of the screen over the `DiaryScreen`.
-  - Sheet is always visible and never dismissible — it is the primary entry point for creating a memory.
+- [x] **Task 32: Replace FAB with Persistent Bottom Sheet.**
+  - Removed the existing black `+` FAB button entirely.
+  - Added a persistent bottom sheet occupying the bottom **15%** of the screen over `DiaryScreen`.
+  - Sheet is always visible, never dismissible — primary entry point for creating a memory.
+  - Entire sheet surface is tappable (click consumed at Box level to prevent propagation to list).
 
-- [ ] **Task 33: Bottom Sheet Collapsed State UI.**
+- [x] **Task 33: Bottom Sheet Collapsed State UI.**
   - The collapsed sheet displays:
-    - A centered text prompt: *"What's on your mind?"*
-    - A Mic icon (left) and a Photo icon (right) flanking the prompt.
-  - Tapping the text, the Mic icon, or the Photo icon all open the `CaptureScreen`.
-  - Each tap target should pass context to `CaptureScreen` (e.g. mic tap pre-focuses audio input, photo tap pre-opens gallery).
+    - Text prompt *"What's on your mind?"* left-aligned.
+    - Mic icon and Photo icon grouped on the right, side by side.
+  - Tapping anywhere on the sheet opens `CaptureScreen`.
 
 - [ ] **Task 34: Bottom-to-Top Capture Screen Animation.**
   - `CaptureScreen` slides in from bottom to top (upward motion) covering 100% of the screen.

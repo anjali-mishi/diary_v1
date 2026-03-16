@@ -215,45 +215,46 @@ fun DiaryScreen(
             )
         }
 
-        // Persistent capture entry sheet — always 20% of screen height, never dismissible
+        // Persistent capture entry sheet — always 15% of screen height, never dismissible
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .fillMaxHeight(0.2f)
+                .fillMaxHeight(0.15f)
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .background(MaterialTheme.colorScheme.surface),
+                .background(MaterialTheme.colorScheme.surface)
+                .clickable { onNavigateToCapture() },
             contentAlignment = Alignment.Center
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 32.dp),
+                    .padding(horizontal = 24.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Mic,
-                    contentDescription = "Record voice memo",
-                    tint = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clickable { onNavigateToCapture() }
-                )
                 Text(
                     text = "What's on your mind?",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.clickable { onNavigateToCapture() }
+                    color = MaterialTheme.colorScheme.secondary
                 )
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = "Attach photo",
-                    tint = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clickable { onNavigateToCapture() }
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "Record voice memo",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = "Attach photo",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
             }
         }
     }
