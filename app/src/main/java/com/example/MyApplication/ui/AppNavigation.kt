@@ -56,9 +56,9 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             composable(route = Screen.Diary.name) {
                 Log.d(TAG, "Navigated to: Diary")
                 DiaryScreen(
-                    onNavigateToCapture = {
-                        Log.d(TAG, "DiaryScreen → Capture (new memory)")
-                        navController.navigate(Screen.Capture.name)
+                    onNavigateToCapture = { action ->
+                        Log.d(TAG, "DiaryScreen → Capture (action=$action)")
+                        navController.navigate("${Screen.Capture.name}?action=$action")
                     },
                     onNavigateToIndex = {
                         Log.d(TAG, "DiaryScreen → Index")
@@ -72,8 +72,11 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 )
             }
             composable(
-                route = "${Screen.Capture.name}?memoryId={memoryId}",
-                arguments = listOf(navArgument("memoryId") { type = NavType.StringType; nullable = true }),
+                route = "${Screen.Capture.name}?memoryId={memoryId}&action={action}",
+                arguments = listOf(
+                    navArgument("memoryId") { type = NavType.StringType; nullable = true },
+                    navArgument("action") { type = NavType.StringType; nullable = true }
+                ),
                 enterTransition = {
                     slideInVertically(
                         initialOffsetY = { fullHeight -> fullHeight },
@@ -88,12 +91,14 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 }
             ) { backStackEntry ->
                 val memoryId = backStackEntry.arguments?.getString("memoryId")
-                Log.d(TAG, "Navigated to: Capture (memoryId=$memoryId)")
+                val action = backStackEntry.arguments?.getString("action")
+                Log.d(TAG, "Navigated to: Capture (memoryId=$memoryId action=$action)")
                 val captureViewModel: CaptureViewModel = viewModel(
                     factory = CaptureViewModel.Factory(application, repository)
                 )
                 CaptureScreen(
                     memoryId = memoryId,
+                    action = action,
                     onNavigateBack = {
                         Log.d(TAG, "CaptureScreen → back")
                         navController.popBackStack()

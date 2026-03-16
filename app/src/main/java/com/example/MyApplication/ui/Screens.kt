@@ -58,7 +58,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import kotlinx.coroutines.delay
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -111,7 +115,7 @@ fun Modifier.appleShadow(cornerRadius: Dp = 100.dp): Modifier {
 
 @Composable
 fun DiaryScreen(
-    onNavigateToCapture: () -> Unit,
+    onNavigateToCapture: (action: String) -> Unit,
     onNavigateToIndex: () -> Unit,
     onNavigateToEdit: (String) -> Unit,
     viewModel: DiaryViewModel,
@@ -238,44 +242,67 @@ fun DiaryScreen(
         )
 
         // Persistent capture entry sheet — always 15% of screen height, never dismissible
+        // Each zone has its own tap target: text → typing, mic → voice, image → photo picker
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .height(sheetHeight)
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .clickable { onNavigateToCapture() },
+                .background(MaterialTheme.colorScheme.surface),
             contentAlignment = Alignment.Center
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .fillMaxHeight()
                     .padding(horizontal = 24.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Text prompt — tapping opens CaptureScreen with keyboard focused
                 Text(
                     text = "What's on your mind?",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable { onNavigateToCapture("text") }
+                        .padding(vertical = 8.dp)
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Mic,
-                        contentDescription = "Record voice memo",
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(26.dp)
-                    )
-                    Icon(
-                        imageVector = Icons.Default.Image,
-                        contentDescription = "Attach photo",
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(26.dp)
-                    )
+                    // Mic — tapping opens CaptureScreen and immediately starts recording
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clickable { onNavigateToCapture("voice") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Record voice memo",
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    // Image — tapping opens CaptureScreen and immediately opens photo picker
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clickable { onNavigateToCapture("image") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = "Attach photo",
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
                 }
             }
         }
@@ -439,6 +466,7 @@ fun MemoryCard(
 @Composable
 fun CaptureScreen(
     memoryId: String? = null,
+    action: String? = null,
     onNavigateBack: () -> Unit,
     viewModel: CaptureViewModel,
     modifier: Modifier = Modifier
@@ -452,6 +480,8 @@ fun CaptureScreen(
     val context = LocalContext.current
     val audioRecorder = remember { AudioRecorder(context) }
     val audioPlayer = remember { AudioPlayer() }
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     // Release player if user leaves screen
     androidx.compose.runtime.DisposableEffect(Unit) {
@@ -507,6 +537,32 @@ fun CaptureScreen(
                 originalText = t
                 originalPhotoUri = p
                 originalAudioUri = a
+            }
+        }
+    }
+
+    // Initiate the correct flow based on how the screen was opened from the sheet
+    androidx.compose.runtime.LaunchedEffect(action) {
+        when (action) {
+            "text" -> {
+                // Small delay lets the slide-up animation settle before the keyboard appears
+                delay(300)
+                focusRequester.requestFocus()
+                keyboardController?.show()
+            }
+            "voice" -> {
+                delay(300)
+                val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                if (permission == PackageManager.PERMISSION_GRANTED) {
+                    audioRecorder.startRecording()
+                    isRecording = true
+                } else {
+                    recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            }
+            "image" -> {
+                delay(200)
+                photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             }
         }
     }
@@ -688,7 +744,8 @@ fun CaptureScreen(
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .weight(1f)
+                .focusRequester(focusRequester),
             decorationBox = { innerTextField ->
                 if (textContent.isEmpty() && selectedPhotoUri == null && recordedAudioUri == null) {
                     Text(
