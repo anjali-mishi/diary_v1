@@ -1,6 +1,11 @@
 package com.example.myapplication.ui
 
 import android.util.Log
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -68,7 +73,19 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             }
             composable(
                 route = "${Screen.Capture.name}?memoryId={memoryId}",
-                arguments = listOf(navArgument("memoryId") { type = NavType.StringType; nullable = true })
+                arguments = listOf(navArgument("memoryId") { type = NavType.StringType; nullable = true }),
+                enterTransition = {
+                    slideInVertically(
+                        initialOffsetY = { fullHeight -> fullHeight },
+                        animationSpec = tween(durationMillis = 400)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutVertically(
+                        targetOffsetY = { fullHeight -> fullHeight },
+                        animationSpec = tween(durationMillis = 350)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 250))
+                }
             ) { backStackEntry ->
                 val memoryId = backStackEntry.arguments?.getString("memoryId")
                 Log.d(TAG, "Navigated to: Capture (memoryId=$memoryId)")

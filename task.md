@@ -78,7 +78,7 @@ This is your roadmap to building the Memory App, designed specifically for you a
     - Mic icon and Photo icon grouped on the right, side by side.
   - Tapping anywhere on the sheet opens `CaptureScreen`.
 
-- [ ] **Task 34: Bottom-to-Top Capture Screen Animation.**
+- [x] **Task 34: Bottom-to-Top Capture Screen Animation.**
   - `CaptureScreen` slides in from bottom to top (upward motion) covering 100% of the screen.
   - Use Compose `AnimatedVisibility` or `ModalBottomSheet` with a custom enter transition for the slide-up effect.
 
