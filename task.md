@@ -109,6 +109,7 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Chip row disappears automatically once `textContent.isNotBlank()`.
   - Implement as a `LazyRow` of `SuggestionChip` (Material 3). No backend or ML — static list only.
   - **UI Update:** Chips are bottom-aligned, positioned directly above the mic/photo FAB row (i.e., right above the keypad), not below the title.
+  - **Refinement:** Removed ellipses (`…`) from all starter chip labels. Tapping a chip now places the cursor at the end of the inserted text.
 
 - [x] **Task 38: Inline Auto-Suggestions (Predictive Text Chips).**
   - As the user types, show 2–3 short predictive continuation chips in a strip **above the keyboard area** (between the text field and the mic/photo FABs).
@@ -119,6 +120,7 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Tapping a chip appends the suggestion to `textContent`.
   - If no pattern matches, render an empty row (no visible strip).
   - Implement as a `Row` of `FilterChip` or plain styled `Text` buttons.
+  - **Refinement:** Tapping a suggestion chip places the cursor at the end of the resulting text (not the beginning).
 
 - [ ] **Task 39: Waveform Audio Recording Visualizer.**
   - Replace the current "red dot + Recording Voice Memo…" text indicator (`Screens.kt:529–542`) with an animated waveform bar visualizer.

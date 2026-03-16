@@ -64,8 +64,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import kotlinx.coroutines.delay
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -489,6 +491,7 @@ fun CaptureScreen(
     modifier: Modifier = Modifier
 ) {
     var textContent by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
+    var textFieldSelection by remember { mutableStateOf(TextRange(0)) }
     var selectedPhotoUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var recordedAudioUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var isRecording by remember { mutableStateOf(false) }
@@ -761,8 +764,8 @@ fun CaptureScreen(
 
         // Main Text Input Area
         BasicTextField(
-            value = textContent,
-            onValueChange = { textContent = it },
+            value = TextFieldValue(textContent, textFieldSelection),
+            onValueChange = { textContent = it.text; textFieldSelection = it.selection },
             textStyle = MaterialTheme.typography.bodyLarge.copy(
                 color = MaterialTheme.colorScheme.onBackground
             ),
@@ -802,7 +805,9 @@ fun CaptureScreen(
                     items(suggestions) { suggestion ->
                         androidx.compose.material3.SuggestionChip(
                             onClick = {
-                                textContent = textContent.trimEnd() + " " + suggestion
+                                val newText = textContent.trimEnd() + " " + suggestion
+                                textContent = newText
+                                textFieldSelection = TextRange(newText.length)
                             },
                             label = {
                                 Text(
@@ -819,10 +824,10 @@ fun CaptureScreen(
         // Quick starter chips — right above the keypad, visible only when blank
         if (textContent.isBlank()) {
             val starters = listOf(
-                "Today I felt…",
-                "Something I'm grateful for…",
-                "A moment I want to remember…",
-                "I was surprised by…"
+                "Today I felt",
+                "Something I'm grateful for",
+                "A moment I want to remember",
+                "I was surprised by"
             )
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -832,7 +837,10 @@ fun CaptureScreen(
             ) {
                 items(starters) { prompt ->
                     androidx.compose.material3.SuggestionChip(
-                        onClick = { textContent = prompt },
+                        onClick = {
+                            textContent = prompt
+                            textFieldSelection = TextRange(prompt.length)
+                        },
                         label = {
                             Text(
                                 text = prompt,

@@ -64,6 +64,14 @@ Executing the specific soft, journal-like aesthetics defined in `design.md` requ
 * **Gradient Strip Above Sheet:**
   * A 30dp `Box` with `Brush.verticalGradient` (transparent → soft orange → soft pink) is overlaid at `BottomCenter` and offset upward by `sheetHeight`, sitting flush against the sheet's top edge. Purely decorative; diary content above it is fully unaffected.
 
+## Phase 10: CaptureScreen UI Enhancements
+
+* **Suggestion Chips — Cursor Control (`TextFieldValue`):**
+  * *Issue:* `BasicTextField` bound to a plain `String` state always resets the cursor to position 0 when the string is set programmatically (e.g., on chip tap).
+  * *Resolution:* Introduced a companion `textFieldSelection: TextRange` state alongside the existing `rememberSaveable` `textContent: String`. `BasicTextField` now receives a `TextFieldValue(textContent, textFieldSelection)`; `onValueChange` updates both independently. Chip taps set `textFieldSelection = TextRange(newText.length)`, placing the cursor at the end. This avoids migrating `textContent` to a non-serialisable `TextFieldValue` and keeps the existing dirty-check and save logic unchanged.
+* **Starter Chip Copy:**
+  * Removed trailing ellipsis (`…`) from all four starter prompt labels so inserted text reads as a clean sentence fragment the user continues naturally.
+
 ## Observability / Debugging
 
 * **Structured Logcat Logging:** Added `android.util.Log` calls across all layers with a consistent `Diary.<Layer>` tag convention (`Diary.MainActivity`, `Diary.Navigation`, `Diary.CaptureVM`, `Diary.DiaryVM`, `Diary.Repository`, `Diary.Database`, `Diary.AudioPlayer`, `Diary.AudioRecorder`, `Diary.EmotionDetector`, `Diary.ImageStorage`). Filter all app logs in Logcat with `tag:Diary`. Uses `Log.d` for normal flow, `Log.i` for key state changes, and `Log.e` for errors with full stack traces.
