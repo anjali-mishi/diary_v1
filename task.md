@@ -70,13 +70,18 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Removed the existing black `+` FAB button entirely.
   - Added a persistent bottom sheet occupying the bottom **15%** of the screen over `DiaryScreen`.
   - Sheet is always visible, never dismissible — primary entry point for creating a memory.
-  - Entire sheet surface is tappable (click consumed at Box level to prevent propagation to list).
 
 - [x] **Task 33: Bottom Sheet Collapsed State UI.**
   - The collapsed sheet displays:
     - Text prompt *"What's on your mind?"* left-aligned.
     - Mic icon and Photo icon grouped on the right, side by side.
-  - Tapping anywhere on the sheet opens `CaptureScreen`.
+  - Each zone has its own independent tap target (see Task 33a).
+
+- [x] **Task 33a: Smart Sheet Tap Zones.**
+  - Tapping the text prompt opens `CaptureScreen` with keyboard auto-focused.
+  - Tapping the Mic icon opens `CaptureScreen` and immediately starts audio recording (or prompts for permission).
+  - Tapping the Image icon opens `CaptureScreen` and immediately launches the photo picker.
+  - Action is passed as a nav argument (`action=text|voice|image`) and handled via `LaunchedEffect` in `CaptureScreen`.
 
 - [x] **Task 34: Bottom-to-Top Capture Screen Animation.**
   - `CaptureScreen` slides in from bottom to top (upward motion) covering 100% of the screen.
