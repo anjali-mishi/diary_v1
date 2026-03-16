@@ -64,20 +64,28 @@ This is your roadmap to building the Memory App, designed specifically for you a
 - [x] **Task 30: Unsaved Changes Dialog.** Intercept back/close actions to confirm discarding unsaved edits.
 - [x] **Task 31: Absolute Theme Enforcement.** Map all Material 3 typography tokens to custom fonts and replace standard M3 elevations with custom soft shadows to perfectly match `design.md`.
 
-## Phase 9: Premium UI — Instagram & Spotify Mechanics
+## Phase 9: Capture Entry Point — Persistent Bottom Sheet
 
-- [ ] **Task 32: Instagram-Style Full-Screen Memory Detail View.**
-  - Create a new `DetailScreen` composable that opens when a memory card is tapped (instead of jumping directly to edit mode).
-  - Layout: photo or animated gradient fills ~70% of screen height at top; text content scrolls below.
-  - For memories without a photo: show an animated blurred gradient background using the emotional tone color.
-  - An Edit button in the top-right corner navigates to the existing `CaptureScreen` in edit mode.
-  - ⚠️ **Requires user clarity before execution:** How should the back gesture behave — swipe down (Instagram-style) or standard back button? Should the gradient animation be subtle parallax or a slow color pulse?
+- [ ] **Task 32: Replace FAB with Persistent Bottom Sheet.**
+  - Remove the existing black `+` FAB button entirely.
+  - Add a persistent bottom sheet that always occupies the bottom 20% of the screen over the `DiaryScreen`.
+  - Sheet is always visible and never dismissible — it is the primary entry point for creating a memory.
 
-- [ ] **Task 33: Spotify-Style Persistent Audio Player.**
-  - Build a globally-visible floating bottom bar that appears over the Scaffold (above the FAB) whenever an audio memo is actively playing.
-  - Must include: Play/Pause button, audio title/source memory name, a scrubber bar showing progress, and elapsed/total time.
-  - Background: Glassmorphism effect — semi-translucent (`~85% opacity`) surface with Warm Paper tint, matching `design.md`.
-  - Player persists and follows the user even if they navigate between `DiaryScreen` and `IndexScreen`.
-  - ⚠️ **Requires user clarity before execution:** Should tapping the bar expand it into a full Spotify-style "Now Playing" sheet, or just control play/pause inline?
+- [ ] **Task 33: Bottom Sheet Collapsed State UI.**
+  - The collapsed sheet displays:
+    - A centered text prompt: *"What's on your mind?"*
+    - A Mic icon (left) and a Photo icon (right) flanking the prompt.
+  - Tapping the text, the Mic icon, or the Photo icon all open the `CaptureScreen`.
+  - Each tap target should pass context to `CaptureScreen` (e.g. mic tap pre-focuses audio input, photo tap pre-opens gallery).
+
+- [ ] **Task 34: Bottom-to-Top Capture Screen Animation.**
+  - `CaptureScreen` slides in from bottom to top (upward motion) covering 100% of the screen.
+  - Use Compose `AnimatedVisibility` or `ModalBottomSheet` with a custom enter transition for the slide-up effect.
+
+- [ ] **Task 35: Soft Gradient Above the Sheet.**
+  - Render a 30px tall gradient strip immediately above the sheet (between the diary list and the sheet edge).
+  - Gradient colors: soft orange → pink, fully transparent at the top edge, opaque at the sheet edge.
+  - This gradient does NOT blur the diary content — the 80% of screen above it remains 100% visible and unaffected.
+  - Implement as a `Box` with `Brush.verticalGradient` overlaid at the bottom of the diary area.
 
 > **CRITICAL RULE FOR ALL FUTURE DEVELOPMENT:** Do not assume implementation details. If a dependency, UI layout, or technical approach is ambiguous, you MUST ask the user for clarity before executing code.
