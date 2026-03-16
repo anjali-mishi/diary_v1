@@ -150,9 +150,7 @@ fun DiaryScreen(
     ) {
         val sheetHeight = maxHeight * 0.2f
 
-        if (memories.isEmpty()) {
-            // intentionally empty — empty state rendered last (on top)
-        } else {
+        if (memories.isNotEmpty()) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
