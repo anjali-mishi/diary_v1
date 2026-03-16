@@ -8,8 +8,8 @@ This document defines the foundational visual language for the Memory App. It se
 * Soft, diffuse shadows (Apple-style).
 
 ## Typography
-*   **Primary Font (Titles & Dates):** `Playwrite Österreich` (Google Fonts) - Gives the personal, handmade journal feel.
-*   **Secondary Font (Body Text & Entries):** Highly legible Sans-Serif (e.g., `SF Pro Rounded`, `Nunito`, or `Inter`) - Ensures long journal entries are easy to read.
+*   **Primary Font (Titles):** `Trocchi` (Google Fonts, free) - Gives the personal, handmade journal feel. Replaced `Playwrite Österreich` as of Task 47.
+*   **Secondary Font (Body Text, Entries & Dates):** Highly legible Sans-Serif (e.g., `SF Pro Rounded`, `Nunito`, or `Inter`) - Ensures long journal entries and dates are easy to read.
 
 ## Color Palette
 ### Base Colors
@@ -17,7 +17,9 @@ This document defines the foundational visual language for the Memory App. It se
 *   **Memory Card Background:** Apple-style clean surface (e.g., `#FFFFFF`) to create contrast against the warm paper background. 
 *   **Primary Text:** `#2C2A29` (Soft black)
 *   **Secondary / Hint Text:** Medium warm grey (e.g., `#8E8A86`)
-*   **Accent (Interactive elements):** `#2C2A29` (Soft black)
+*   **Accent / Primary Brand Gradient (Interactive elements):** `#FF9966` → `#FF6699` (soft orange → soft pink, left-to-right or top-to-bottom as context demands).
+    - Applied to: "Save memory" button fill, FABs, waveform bars, gradient strip above bottom sheet, action chips active states, and any other primary interactive surface.
+    - Replaces the previous flat `#2C2A29` accent for all interactive elements.
 
 ### Emotional Colors (Background Gradients)
 **Crucial UI Note:** These colors should NOT be used as solid blocks. They must be implemented as an **extreme blurred, soft gradient** (custom background) behind the memory content, blending with the Apple Glass elevation.

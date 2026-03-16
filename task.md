@@ -164,3 +164,35 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Center-align the placeholder text *"What's on your mind?"* inside the persistent bottom sheet (currently left-aligned).
   - Apply **rounded top-left and top-right corners** (e.g., `16dp` radius) to the sheet's surface/background shape; bottom corners remain square (sheet is flush with screen bottom).
   - No other sheet layout or behavior changes.
+
+- [ ] **Task 45: Gradient as App Primary Color — "Save memory" Button & Global Update.**
+  - Define a canonical brand gradient: **soft orange `#FF9966` → soft pink `#FF6699`** (left-to-right / top-to-bottom as context demands). This is the same gradient already used on the persistent bottom sheet and the waveform bars.
+  - Apply this gradient as the fill of the **"Save memory"** button (replacing the flat M3 primary fill).
+  - Propagate the gradient as the primary interactive color throughout the entire app wherever applicable:
+    - FAB buttons (mic, photo, close) — gradient background or tinted icon.
+    - Action chips, active states, highlighted elements.
+    - Gradient strip above the bottom sheet (Task 35) — already matches, confirm values.
+    - Waveform bar gradient (Task 39/41) — already matches, confirm values.
+  - Update `design.md`: replace the current "Accent (Interactive elements)" color entry with the gradient definition and usage rules.
+
+- [ ] **Task 46: Memory Card — Remove Playwrite Font from Dates.**
+  - The memory card date/timestamp currently renders in `Playwrite Österreich`. Change it to the secondary body font (the legible sans-serif already used for entry text).
+  - No other card typography changes.
+
+- [ ] **Task 47: Replace Playwrite with Trocchi Font App-Wide.**
+  - Trocchi is a free Google Font — confirmed safe to use.
+  - Replace every usage of `Playwrite Österreich` in the codebase (font loading, `FontFamily` declarations, `TextStyle` assignments) with **Trocchi**.
+  - Download/reference `Trocchi` via the existing Google Fonts Compose dependency (same mechanism as Playwrite).
+  - Update `design.md` Typography section: change `Playwrite Österreich` → `Trocchi` as the Primary Font.
+
+- [ ] **Task 48: Memory Entry Text — Center-Aligned in CaptureScreen.**
+  - Center-align the main text input / body text in `CaptureScreen` (the `TextField` or `BasicTextField` where the user writes the memory).
+  - Both `textAlign = TextAlign.Center` and horizontal centering of the field itself within its container.
+  - Does not affect other screens (diary list, edit screen) unless those are also entry-writing surfaces.
+
+- [ ] **Task 49: Suggestion & Predictor Chips — White Fill with Soft Shadow.**
+  - Change the quick-starter suggestion chips (Task 37) and inline predictor chips (Task 38) from their current appearance to:
+    - **Background:** solid white (`#FFFFFF`).
+    - **Elevation/Shadow:** low soft shadow matching the app's Apple-style shadow system (low y-offset, low opacity, high blur — e.g., `2dp` elevation equivalent).
+    - **No border/outline** — rely solely on the shadow for depth.
+  - Typography and tap behavior remain unchanged.
