@@ -151,26 +151,7 @@ fun DiaryScreen(
         val sheetHeight = maxHeight * 0.2f
 
         if (memories.isEmpty()) {
-            // Empty state
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(start = 32.dp, end = 32.dp, top = 32.dp, bottom = sheetHeight + 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "Your diary is empty.",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Tap below to capture your first memory.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-            }
+            // intentionally empty — empty state rendered last (on top)
         } else {
             LazyColumn(
                 modifier = Modifier
@@ -224,6 +205,30 @@ fun DiaryScreen(
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .background(MaterialTheme.colorScheme.surface)
         )
+
+        // Empty state rendered last so it appears above the header and sheet
+        if (memories.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 72.dp, bottom = 160.dp, start = 32.dp, end = 32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Your diary is empty.",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Tap below to capture your first memory.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+            }
+        }
     }
 }
 
