@@ -122,7 +122,7 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Implement as a `Row` of `FilterChip` or plain styled `Text` buttons.
   - **Refinement:** Tapping a suggestion chip places the cursor at the end of the resulting text (not the beginning).
 
-- [ ] **Task 39: Waveform Audio Recording Visualizer.**
+- [x] **Task 39: Waveform Audio Recording Visualizer.**
   - Replace the current "red dot + Recording Voice Memo…" text indicator (`Screens.kt:529–542`) with an animated waveform bar visualizer.
   - Waveform: a row of vertical bars that animate (height varies) while `isRecording == true`.
   - Bar heights: driven by `MediaRecorder.maxAmplitude` if wired in `AudioRecorder.kt`; otherwise simulated with random variation on a ~60ms timer using `LaunchedEffect`.

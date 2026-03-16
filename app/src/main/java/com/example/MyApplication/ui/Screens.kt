@@ -3,6 +3,10 @@ package com.example.myapplication.ui
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -52,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
@@ -496,6 +501,7 @@ fun CaptureScreen(
     var recordedAudioUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var isRecording by remember { mutableStateOf(false) }
     var isAudioPlaying by remember { mutableStateOf(false) }
+    var waveBarHeights by remember { mutableStateOf(List(20) { 0.05f }) }
 
     val context = LocalContext.current
     val audioRecorder = remember { AudioRecorder(context) }
@@ -587,6 +593,23 @@ fun CaptureScreen(
         }
     }
 
+    // Poll amplitude while recording to animate waveform bars
+    androidx.compose.runtime.LaunchedEffect(isRecording) {
+        if (isRecording) {
+            while (true) {
+                val amp = audioRecorder.maxAmplitude()
+                val norm = (amp / 32767f).coerceIn(0f, 1f)
+                waveBarHeights = List(20) { i ->
+                    val spread = 1f - kotlin.math.abs(i - 9.5f) / 9.5f
+                    val jitter = kotlin.random.Random.nextFloat() * 0.25f
+                    (norm * spread + jitter + 0.05f).coerceIn(0.05f, 1f)
+                }
+                delay(60)
+            }
+        }
+        // on stop: heights freeze in place; AnimatedVisibility fades the Canvas out
+    }
+
     // ─── Discard confirmation dialog ──────────────────────────────────────────
     if (showDiscardDialog) {
         androidx.compose.material3.AlertDialog(
@@ -656,19 +679,33 @@ fun CaptureScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Live Recording Indicator
-        if (isRecording) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 16.dp)
+        // Waveform Recording Visualizer
+        AnimatedVisibility(
+            visible = isRecording,
+            exit = fadeOut(tween(600))
+        ) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .padding(bottom = 16.dp)
             ) {
-                Box(modifier = Modifier.size(10.dp).background(Color(0xFFFF4B4B), CircleShape))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Recording Voice Memo...",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFFF4B4B)
-                )
+                val barCount = waveBarHeights.size
+                val totalGapFraction = 0.4f
+                val totalGap = size.width * totalGapFraction
+                val barWidth = (size.width - totalGap) / barCount
+                val gapWidth = if (barCount > 1) totalGap / (barCount - 1) else 0f
+                waveBarHeights.forEachIndexed { i, heightFraction ->
+                    val barHeight = (heightFraction * size.height).coerceAtLeast(2f)
+                    val x = i * (barWidth + gapWidth)
+                    val y = (size.height - barHeight) / 2f
+                    val brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFFFFB280), Color(0xFFFFA8C0)),
+                        startY = y,
+                        endY = y + barHeight
+                    )
+                    drawRect(brush = brush, topLeft = Offset(x, y), size = Size(barWidth, barHeight))
+                }
             }
         }
 

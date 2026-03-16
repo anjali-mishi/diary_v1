@@ -69,6 +69,13 @@ Executing the specific soft, journal-like aesthetics defined in `design.md` requ
 * **Suggestion Chips — Cursor Control (`TextFieldValue`):**
   * *Issue:* `BasicTextField` bound to a plain `String` state always resets the cursor to position 0 when the string is set programmatically (e.g., on chip tap).
   * *Resolution:* Introduced a companion `textFieldSelection: TextRange` state alongside the existing `rememberSaveable` `textContent: String`. `BasicTextField` now receives a `TextFieldValue(textContent, textFieldSelection)`; `onValueChange` updates both independently. Chip taps set `textFieldSelection = TextRange(newText.length)`, placing the cursor at the end. This avoids migrating `textContent` to a non-serialisable `TextFieldValue` and keeps the existing dirty-check and save logic unchanged.
+* **Waveform Recording Visualizer (Task 39):**
+  * Replaced the red dot + "Recording Voice Memo…" `Row` with an animated `Canvas` waveform.
+  * Added `maxAmplitude(): Int` to `AudioRecorder` (delegates to `MediaRecorder.maxAmplitude`).
+  * A `LaunchedEffect(isRecording)` coroutine polls amplitude every 60 ms while recording, computing 20 bar heights. Each bar uses a bell-curve spread (centre bars taller) plus random jitter so motion looks organic. Heights are stored in a `List<Float>` state.
+  * Bar fill: `Brush.verticalGradient` from `#FFB280` (soft orange) → `#FFA8C0` (soft pink), matching the Task 35 sheet gradient.
+  * Fade-out: `AnimatedVisibility(visible = isRecording, exit = fadeOut(tween(600)))` — when recording stops the coroutine cancels, heights freeze at their last values, and the canvas fades out over 600 ms, giving the "freeze briefly then disappear" feel.
+  * The audio preview row (play/stop) shown after recording ends is unchanged.
 * **Starter Chip Copy:**
   * Removed trailing ellipsis (`…`) from all four starter prompt labels so inserted text reads as a clean sentence fragment the user continues naturally.
 

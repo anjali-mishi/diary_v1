@@ -42,6 +42,8 @@ class AudioRecorder(private val context: Context) {
         }
     }
 
+    fun maxAmplitude(): Int = recorder?.maxAmplitude ?: 0
+
     fun stopRecording(): String? {
         Log.d(TAG, "stopRecording: stopping recorder")
         try {
