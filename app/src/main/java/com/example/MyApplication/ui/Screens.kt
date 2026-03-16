@@ -674,18 +674,16 @@ fun CaptureScreen(
                     .padding(bottom = 16.dp)
             ) {
                 val barCount = waveBarHeights.size
-                val totalGapFraction = 0.4f
-                val totalGap = size.width * totalGapFraction
-                val barWidth = (size.width - totalGap) / barCount
-                val gapWidth = if (barCount > 1) totalGap / (barCount - 1) else 0f
+                val barWidth = 4.dp.toPx()
+                val gapWidth = if (barCount > 1) (size.width - barWidth * barCount) / (barCount - 1) else 0f
                 waveBarHeights.forEachIndexed { i, heightFraction ->
                     val barHeight = (heightFraction * size.height).coerceAtLeast(2f)
                     val x = i * (barWidth + gapWidth)
-                    val y = (size.height - barHeight) / 2f
+                    val y = size.height - barHeight
                     val brush = Brush.verticalGradient(
                         colors = listOf(Color(0xFFFFB280), Color(0xFFFFA8C0)),
                         startY = y,
-                        endY = y + barHeight
+                        endY = size.height
                     )
                     drawRect(brush = brush, topLeft = Offset(x, y), size = Size(barWidth, barHeight))
                 }
