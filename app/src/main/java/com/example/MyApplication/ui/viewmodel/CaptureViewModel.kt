@@ -44,9 +44,10 @@ class CaptureViewModel(
         textContent: String,
         photoUri: String? = null,
         audioUri: String? = null,
+        waveformData: String? = null,
         onSuccess: () -> Unit
     ) {
-        Log.d(TAG, "saveMemory: textLen=${textContent.length}, hasPhoto=${photoUri != null}, hasAudio=${audioUri != null}")
+        Log.d(TAG, "saveMemory: textLen=${textContent.length}, hasPhoto=${photoUri != null}, hasAudio=${audioUri != null}, hasWaveform=${waveformData != null}")
 
         if (textContent.isBlank() && photoUri == null && audioUri == null) {
             Log.w(TAG, "saveMemory: aborted — no content provided")
@@ -82,6 +83,7 @@ class CaptureViewModel(
                 textContent = textContent.ifBlank { null },
                 photoFilePath = persistedPhotoPath,
                 audioFilePath = audioUri,
+                waveformData = waveformData,
                 emotionalTone = detectedTone,
                 createdAt = existingCreatedAt ?: now,
                 updatedAt = now

@@ -504,6 +504,8 @@ fun CaptureScreen(
     var isAudioPlaying by remember { mutableStateOf(false) }
     var waveBarHeights by remember { mutableStateOf(List(7) { 0.3f }) }
     var recordingSeconds by remember { mutableStateOf(0) }
+    val amplitudeSamples = remember { androidx.compose.runtime.mutableStateListOf<Float>() }
+    var recordedWaveformJson by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val audioRecorder = remember { AudioRecorder(context) }
@@ -599,6 +601,7 @@ fun CaptureScreen(
     androidx.compose.runtime.LaunchedEffect(isRecording) {
         if (isRecording) {
             recordingSeconds = 0
+            amplitudeSamples.clear()
             val startTime = System.currentTimeMillis()
             // Target heights that the wave smoothly lerps toward
             var targets = List(7) { 0.3f }
@@ -606,6 +609,7 @@ fun CaptureScreen(
             while (true) {
                 val amp = audioRecorder.maxAmplitude()
                 val norm = (amp / 32767f).coerceIn(0f, 1f)
+                amplitudeSamples.add(norm)
                 // Refresh random targets every ~5 frames (~500ms) for slow undulation
                 if (frameCount % 5 == 0) {
                     targets = List(7) { _ ->
@@ -667,6 +671,7 @@ fun CaptureScreen(
                         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
                     ) {
                         IconButton(onClick = {
+                            recordedWaveformJson = "[${amplitudeSamples.joinToString(",")}]"
                             recordedAudioUri = audioRecorder.stopRecording()
                             isRecording = false
                         }) {
@@ -746,6 +751,7 @@ fun CaptureScreen(
                     ) {
                         androidx.compose.material3.FloatingActionButton(
                             onClick = {
+                                recordedWaveformJson = "[${amplitudeSamples.joinToString(",")}]"
                                 recordedAudioUri = audioRecorder.stopRecording()
                                 isRecording = false
                             },
@@ -986,7 +992,7 @@ fun CaptureScreen(
                 if (textContent.isNotBlank() || selectedPhotoUri != null || recordedAudioUri != null) {
                     androidx.compose.material3.Button(
                         onClick = {
-                            viewModel.saveMemory(textContent, selectedPhotoUri, recordedAudioUri) {
+                            viewModel.saveMemory(textContent, selectedPhotoUri, recordedAudioUri, recordedWaveformJson) {
                                 onNavigateBack()
                             }
                         },

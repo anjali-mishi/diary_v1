@@ -17,7 +17,8 @@ data class Memory(
     val isHidden: Boolean = false,
     val lastViewedAt: Long? = null, // For "pick up where you left off"
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val waveformData: String? = null // JSON-encoded List<Float> of amplitude samples
 )
 
 enum class EmotionalTone {
