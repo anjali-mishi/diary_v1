@@ -502,7 +502,7 @@ fun CaptureScreen(
     var recordedAudioUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var isRecording by remember { mutableStateOf(false) }
     var isAudioPlaying by remember { mutableStateOf(false) }
-    var waveBarHeights by remember { mutableStateOf(List(20) { 0.05f }) }
+    var waveBarHeights by remember { mutableStateOf(List(7) { 0.3f }) }
     var recordingSeconds by remember { mutableStateOf(0) }
 
     val context = LocalContext.current
@@ -600,15 +600,26 @@ fun CaptureScreen(
         if (isRecording) {
             recordingSeconds = 0
             val startTime = System.currentTimeMillis()
+            // Target heights that the wave smoothly lerps toward
+            var targets = List(7) { 0.3f }
+            var frameCount = 0
             while (true) {
                 val amp = audioRecorder.maxAmplitude()
                 val norm = (amp / 32767f).coerceIn(0f, 1f)
-                waveBarHeights = List(20) { _ ->
-                    val jitter = kotlin.random.Random.nextFloat() * 0.35f
-                    (norm * 0.65f + jitter + 0.1f).coerceIn(0.1f, 1f)
+                // Refresh random targets every ~5 frames (~500ms) for slow undulation
+                if (frameCount % 5 == 0) {
+                    targets = List(7) { _ ->
+                        val jitter = kotlin.random.Random.nextFloat() * 0.4f
+                        (norm * 0.55f + jitter + 0.2f).coerceIn(0.2f, 1f)
+                    }
+                }
+                frameCount++
+                // Lerp current heights toward targets — 0.18 factor = fluid, not snappy
+                waveBarHeights = waveBarHeights.mapIndexed { i, current ->
+                    current + (targets[i] - current) * 0.18f
                 }
                 recordingSeconds = ((System.currentTimeMillis() - startTime) / 1000).toInt()
-                delay(60)
+                delay(100)
             }
         }
     }
@@ -703,7 +714,7 @@ fun CaptureScreen(
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val pts = waveBarHeights
                         val segW = size.width / (pts.size - 1).toFloat()
-                        val maxWaveH = size.height * 0.7f
+                        val maxWaveH = size.height
                         val path = Path()
                         path.moveTo(0f, size.height)
                         path.lineTo(0f, size.height - pts[0] * maxWaveH)
@@ -720,7 +731,7 @@ fun CaptureScreen(
                         drawPath(
                             path = path,
                             brush = Brush.verticalGradient(
-                                colors = listOf(Color(0x55FF9966), Color(0x55FF6699)),
+                                colors = listOf(Color(0x26FF9966), Color(0x26FF6699)),
                                 startY = 0f,
                                 endY = size.height
                             )
