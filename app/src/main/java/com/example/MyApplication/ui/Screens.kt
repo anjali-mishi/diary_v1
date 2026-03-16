@@ -418,10 +418,35 @@ fun MemoryCard(
                 // Audio indicator/player
                 if (memory.audioFilePath != null) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    
-                    val context = LocalContext.current
-                    val audioPlayer = remember { AudioPlayer() }
+
+                    val cardAudioPlayer = remember { AudioPlayer() }
                     var isPlaying by remember { mutableStateOf(false) }
+                    var playProgress by remember { mutableStateOf(0f) }
+
+                    androidx.compose.runtime.DisposableEffect(Unit) {
+                        onDispose { cardAudioPlayer.release() }
+                    }
+
+                    // Poll playback position at 100ms while playing
+                    androidx.compose.runtime.LaunchedEffect(isPlaying) {
+                        if (isPlaying) {
+                            while (true) {
+                                playProgress = cardAudioPlayer.currentPosition.toFloat() /
+                                        cardAudioPlayer.duration
+                                delay(100)
+                            }
+                        } else {
+                            playProgress = 0f
+                        }
+                    }
+
+                    val wavePoints = remember(memory.waveformData) {
+                        memory.waveformData
+                            ?.removeSurrounding("[", "]")
+                            ?.split(",")
+                            ?.mapNotNull { it.toFloatOrNull() }
+                            .orEmpty()
+                    }
 
                     androidx.compose.foundation.layout.Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -430,10 +455,10 @@ fun MemoryCard(
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                             .clickable {
                                 if (isPlaying) {
-                                    audioPlayer.stop()
+                                    cardAudioPlayer.stop()
                                     isPlaying = false
                                 } else {
-                                    audioPlayer.playFile(memory.audioFilePath) {
+                                    cardAudioPlayer.playFile(memory.audioFilePath) {
                                         isPlaying = false
                                     }
                                     isPlaying = true
@@ -447,11 +472,51 @@ fun MemoryCard(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (isPlaying) "Playing..." else "Voice Memo",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp),
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        if (wavePoints.isNotEmpty()) {
+                            // Waveform bars + playhead
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(28.dp)
+                            ) {
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    val barW = 4.dp.toPx()
+                                    val gap = 2.dp.toPx()
+                                    val step = barW + gap
+                                    val totalNeeded = wavePoints.size * step - gap
+                                    val xScale = (size.width / totalNeeded).coerceAtMost(1f)
+                                    val eBarW = barW * xScale
+                                    val eStep = step * xScale
+                                    wavePoints.forEachIndexed { i, v ->
+                                        val x = i * eStep
+                                        val h = v * size.height
+                                        drawRect(
+                                            brush = Brush.verticalGradient(
+                                                colors = listOf(Color(0xFFFF9966), Color(0xFFFF6699)),
+                                                startY = size.height - h,
+                                                endY = size.height
+                                            ),
+                                            topLeft = androidx.compose.ui.geometry.Offset(x, size.height - h),
+                                            size = androidx.compose.ui.geometry.Size(eBarW, h)
+                                        )
+                                    }
+                                    // Playhead
+                                    val headX = playProgress * size.width
+                                    drawLine(
+                                        color = Color.White,
+                                        start = androidx.compose.ui.geometry.Offset(headX, 0f),
+                                        end = androidx.compose.ui.geometry.Offset(headX, size.height),
+                                        strokeWidth = 2.dp.toPx()
+                                    )
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = if (isPlaying) "Playing..." else "Voice Memo",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
@@ -506,6 +571,7 @@ fun CaptureScreen(
     var recordingSeconds by remember { mutableStateOf(0) }
     val amplitudeSamples = remember { androidx.compose.runtime.mutableStateListOf<Float>() }
     var recordedWaveformJson by remember { mutableStateOf<String?>(null) }
+    var captureAudioProgress by remember { mutableStateOf(0f) }
 
     val context = LocalContext.current
     val audioRecorder = remember { AudioRecorder(context) }
@@ -625,6 +691,18 @@ fun CaptureScreen(
                 recordingSeconds = ((System.currentTimeMillis() - startTime) / 1000).toInt()
                 delay(100)
             }
+        }
+    }
+
+    // Poll playback progress for audio preview waveform
+    androidx.compose.runtime.LaunchedEffect(isAudioPlaying) {
+        if (isAudioPlaying) {
+            while (true) {
+                captureAudioProgress = audioPlayer.currentPosition.toFloat() / audioPlayer.duration
+                delay(100)
+            }
+        } else {
+            captureAudioProgress = 0f
         }
     }
 
@@ -875,12 +953,57 @@ fun CaptureScreen(
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (isAudioPlaying) "Playing..." else "Voice Memo",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.weight(1f)
-                        )
+                        val captureWavePoints = remember(recordedWaveformJson) {
+                            recordedWaveformJson
+                                ?.removeSurrounding("[", "]")
+                                ?.split(",")
+                                ?.mapNotNull { it.toFloatOrNull() }
+                                .orEmpty()
+                        }
+                        if (captureWavePoints.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(32.dp)
+                            ) {
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    val barW = 4.dp.toPx()
+                                    val gap = 2.dp.toPx()
+                                    val step = barW + gap
+                                    val totalNeeded = captureWavePoints.size * step - gap
+                                    val xScale = (size.width / totalNeeded).coerceAtMost(1f)
+                                    val eBarW = barW * xScale
+                                    val eStep = step * xScale
+                                    captureWavePoints.forEachIndexed { i, v ->
+                                        val x = i * eStep
+                                        val h = v * size.height
+                                        drawRect(
+                                            brush = Brush.verticalGradient(
+                                                colors = listOf(Color(0xFFFF9966), Color(0xFFFF6699)),
+                                                startY = size.height - h,
+                                                endY = size.height
+                                            ),
+                                            topLeft = androidx.compose.ui.geometry.Offset(x, size.height - h),
+                                            size = androidx.compose.ui.geometry.Size(eBarW, h)
+                                        )
+                                    }
+                                    val headX = captureAudioProgress * size.width
+                                    drawLine(
+                                        color = Color.White,
+                                        start = androidx.compose.ui.geometry.Offset(headX, 0f),
+                                        end = androidx.compose.ui.geometry.Offset(headX, size.height),
+                                        strokeWidth = 2.dp.toPx()
+                                    )
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = if (isAudioPlaying) "Playing..." else "Voice Memo",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                         IconButton(
                             onClick = {
                                 audioPlayer.stop()

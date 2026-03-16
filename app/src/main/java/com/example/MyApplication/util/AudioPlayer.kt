@@ -41,6 +41,9 @@ class AudioPlayer {
         }
     }
 
+    val currentPosition: Int get() = mediaPlayer?.currentPosition ?: 0
+    val duration: Int get() = mediaPlayer?.duration?.takeIf { it > 0 } ?: 1
+
     fun stop() {
         Log.d(TAG, "stop: releasing player")
         mediaPlayer?.release()
