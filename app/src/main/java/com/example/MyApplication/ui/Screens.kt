@@ -222,9 +222,40 @@ fun DiaryScreen(
                 .fillMaxWidth()
                 .fillMaxHeight(0.2f)
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .clickable { onNavigateToCapture() }
-        )
+                .background(MaterialTheme.colorScheme.surface),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Record voice memo",
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clickable { onNavigateToCapture() }
+                )
+                Text(
+                    text = "What's on your mind?",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.clickable { onNavigateToCapture() }
+                )
+                Icon(
+                    imageVector = Icons.Default.Image,
+                    contentDescription = "Attach photo",
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clickable { onNavigateToCapture() }
+                )
+            }
+        }
     }
 }
 
