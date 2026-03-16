@@ -637,34 +637,6 @@ fun CaptureScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Quick starter chips — visible only when the entry is completely blank
-        if (textContent.isBlank()) {
-            val starters = listOf(
-                "Today I felt…",
-                "Something I'm grateful for…",
-                "A moment I want to remember…",
-                "I was surprised by…"
-            )
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                items(starters) { prompt ->
-                    androidx.compose.material3.SuggestionChip(
-                        onClick = { textContent = prompt },
-                        label = {
-                            Text(
-                                text = prompt,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    )
-                }
-            }
-        }
-
         // Live Recording Indicator
         if (isRecording) {
             Row(
@@ -797,9 +769,33 @@ fun CaptureScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Spacing before actions
-
-        Spacer(modifier = Modifier.height(16.dp))
+        // Quick starter chips — right above the keypad, visible only when blank
+        if (textContent.isBlank()) {
+            val starters = listOf(
+                "Today I felt…",
+                "Something I'm grateful for…",
+                "A moment I want to remember…",
+                "I was surprised by…"
+            )
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            ) {
+                items(starters) { prompt ->
+                    androidx.compose.material3.SuggestionChip(
+                        onClick = { textContent = prompt },
+                        label = {
+                            Text(
+                                text = prompt,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    )
+                }
+            }
+        }
 
         // Bottom Action Bar: Mic/Record + Photo
         androidx.compose.foundation.layout.Row(
