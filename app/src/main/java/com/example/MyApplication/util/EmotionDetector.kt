@@ -1,5 +1,9 @@
 package com.example.myapplication.util
 
+import android.util.Log
+
+private const val TAG = "Diary.EmotionDetector"
+
 /**
  * Simple keyword-based emotion detector.
  * Scores the input text against curated keyword lists, picks the highest-scoring
@@ -54,7 +58,10 @@ object EmotionDetector {
      * Returns one of: "HAPPY", "SAD", "ANXIOUS", "CALM", "EXCITED", or "NEUTRAL"
      */
     fun detect(text: String): String {
-        if (text.isBlank()) return "NEUTRAL"
+        if (text.isBlank()) {
+            Log.d(TAG, "detect: blank input → NEUTRAL")
+            return "NEUTRAL"
+        }
 
         val words = text
             .lowercase()
@@ -70,8 +77,11 @@ object EmotionDetector {
             "CALM"    to words.count { it in calmKeywords },
             "EXCITED" to words.count { it in excitedKeywords }
         )
+        Log.d(TAG, "detect: wordCount=${words.size} scores=$scores")
 
         val best = scores.maxByOrNull { it.value }
-        return if (best != null && best.value > 0) best.key else "NEUTRAL"
+        val result = if (best != null && best.value > 0) best.key else "NEUTRAL"
+        Log.d(TAG, "detect: result=$result")
+        return result
     }
 }

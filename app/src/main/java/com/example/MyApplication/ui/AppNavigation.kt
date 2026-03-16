@@ -1,5 +1,6 @@
 package com.example.myapplication.ui
 
+import android.util.Log
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -17,6 +18,8 @@ import com.example.myapplication.data.repository.MemoryRepository
 import com.example.myapplication.ui.viewmodel.CaptureViewModel
 import com.example.myapplication.ui.viewmodel.DiaryViewModel
 
+private const val TAG = "Diary.Navigation"
+
 enum class Screen {
     Diary,
     Capture,
@@ -25,6 +28,7 @@ enum class Screen {
 
 @Composable
 fun AppNavigation(modifier: Modifier = Modifier) {
+    Log.d(TAG, "AppNavigation: composing")
     val navController = rememberNavController()
     val context = LocalContext.current
     val application = remember { context.applicationContext as android.app.Application }
@@ -45,10 +49,20 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(route = Screen.Diary.name) {
+                Log.d(TAG, "Navigated to: Diary")
                 DiaryScreen(
-                    onNavigateToCapture = { navController.navigate(Screen.Capture.name) },
-                    onNavigateToIndex = { navController.navigate(Screen.Index.name) },
-                    onNavigateToEdit = { memoryId -> navController.navigate("${Screen.Capture.name}?memoryId=$memoryId") },
+                    onNavigateToCapture = {
+                        Log.d(TAG, "DiaryScreen → Capture (new memory)")
+                        navController.navigate(Screen.Capture.name)
+                    },
+                    onNavigateToIndex = {
+                        Log.d(TAG, "DiaryScreen → Index")
+                        navController.navigate(Screen.Index.name)
+                    },
+                    onNavigateToEdit = { memoryId ->
+                        Log.d(TAG, "DiaryScreen → Capture (edit memoryId=$memoryId)")
+                        navController.navigate("${Screen.Capture.name}?memoryId=$memoryId")
+                    },
                     viewModel = diaryViewModel
                 )
             }
@@ -57,19 +71,30 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 arguments = listOf(navArgument("memoryId") { type = NavType.StringType; nullable = true })
             ) { backStackEntry ->
                 val memoryId = backStackEntry.arguments?.getString("memoryId")
+                Log.d(TAG, "Navigated to: Capture (memoryId=$memoryId)")
                 val captureViewModel: CaptureViewModel = viewModel(
                     factory = CaptureViewModel.Factory(application, repository)
                 )
                 CaptureScreen(
                     memoryId = memoryId,
-                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateBack = {
+                        Log.d(TAG, "CaptureScreen → back")
+                        navController.popBackStack()
+                    },
                     viewModel = captureViewModel
                 )
             }
             composable(route = Screen.Index.name) {
+                Log.d(TAG, "Navigated to: Index")
                 IndexScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToEdit = { memoryId -> navController.navigate("${Screen.Capture.name}?memoryId=$memoryId") },
+                    onNavigateBack = {
+                        Log.d(TAG, "IndexScreen → back")
+                        navController.popBackStack()
+                    },
+                    onNavigateToEdit = { memoryId ->
+                        Log.d(TAG, "IndexScreen → Capture (edit memoryId=$memoryId)")
+                        navController.navigate("${Screen.Capture.name}?memoryId=$memoryId")
+                    },
                     viewModel = diaryViewModel
                 )
             }

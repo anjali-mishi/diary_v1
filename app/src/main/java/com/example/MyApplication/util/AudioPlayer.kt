@@ -2,6 +2,9 @@ package com.example.myapplication.util
 
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.util.Log
+
+private const val TAG = "Diary.AudioPlayer"
 
 class AudioPlayer {
 
@@ -10,6 +13,7 @@ class AudioPlayer {
         private set
 
     fun playFile(path: String, onCompletion: () -> Unit) {
+        Log.d(TAG, "playFile: path=$path")
         mediaPlayer = MediaPlayer().apply {
             try {
                 setAudioAttributes(
@@ -19,15 +23,18 @@ class AudioPlayer {
                         .build()
                 )
                 setDataSource(path)
+                Log.d(TAG, "playFile: preparing…")
                 prepare()
                 start()
                 this@AudioPlayer.isPlaying = true
+                Log.i(TAG, "playFile: playback started")
                 setOnCompletionListener {
+                    Log.d(TAG, "playFile: playback completed")
                     this@AudioPlayer.isPlaying = false
                     onCompletion()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e(TAG, "playFile: error — ${e.message}", e)
                 this@AudioPlayer.isPlaying = false
                 onCompletion()
             }
@@ -35,12 +42,14 @@ class AudioPlayer {
     }
 
     fun stop() {
+        Log.d(TAG, "stop: releasing player")
         mediaPlayer?.release()
         mediaPlayer = null
         isPlaying = false
     }
 
     fun release() {
+        Log.d(TAG, "release: releasing player")
         mediaPlayer?.release()
         mediaPlayer = null
     }
