@@ -85,6 +85,27 @@ Executing the specific soft, journal-like aesthetics defined in `design.md` requ
 * **Starter Chip Copy:**
   * Removed trailing ellipsis (`…`) from all four starter prompt labels so inserted text reads as a clean sentence fragment the user continues naturally.
 
+## Phase 11: Waveform Recording & Playback (Tasks 41–43)
+
+* **Lerp-based Wave Animation (Task 41c refinement):**
+  * Random-jitter-per-frame produced jittery, noisy movement. Replaced with a two-state lerp system: `targets` (a `List<Float>` refreshed every 5 frames) and `waveBarHeights` (lerped toward targets at factor 0.18 each 100ms frame). This gives slow, fluid, organic undulation that still responds to voice amplitude.
+  * Reduced control points from 20 to 7 — fewer bezier segments produce wider, rounder wave humps that feel more like Spotify/Apple Music and less like an EKG.
+  * Alpha reduced to 15% (`0x26`) for a subtle ghost-wave effect; `maxWaveH` set to full box height so the wave fills the entire bottom 40%.
+
+* **Waveform Data Format — Plain JSON string (Task 42):**
+  * No external JSON library needed. Amplitude samples are encoded as `"[f0,f1,…]"` using `joinToString(",", "[", "]")` and decoded with `split(",").mapNotNull { it.toFloatOrNull() }`. Lightweight, readable, and trivially parseable in future tasks.
+  * Samples are accumulated in a `mutableStateListOf<Float>` (Compose snapshot-aware) so the UI can read the live count if needed. The list is cleared at the start of each new recording.
+
+* **Room Schema Migration (Task 42):**
+  * Added `MIGRATION_1_2` (`ALTER TABLE memories ADD COLUMN waveformData TEXT`) rather than using `fallbackToDestructiveMigration()`, preserving all existing user data on upgrade.
+
+* **AudioPlayer Progress Polling (Task 43):**
+  * `MediaPlayer.currentPosition` and `duration` are exposed as simple Kotlin property getters on `AudioPlayer`. The Compose UI polls them via `LaunchedEffect(isPlaying)` at 100ms — no callbacks or Flow needed, keeping the implementation minimal.
+  * `duration` returns 1 (not 0) as the default to avoid divide-by-zero in the progress ratio.
+
+* **Pause icon — explicit import required (Task 43):**
+  * `Icons.Default.Pause` does not resolve without an explicit `import androidx.compose.material.icons.filled.Pause`, even though `material-icons-extended` is on the classpath. Added the import alongside the existing `PlayArrow` and `Close` imports.
+
 ## Observability / Debugging
 
 * **Structured Logcat Logging:** Added `android.util.Log` calls across all layers with a consistent `Diary.<Layer>` tag convention (`Diary.MainActivity`, `Diary.Navigation`, `Diary.CaptureVM`, `Diary.DiaryVM`, `Diary.Repository`, `Diary.Database`, `Diary.AudioPlayer`, `Diary.AudioRecorder`, `Diary.EmotionDetector`, `Diary.ImageStorage`). Filter all app logs in Logcat with `tag:Diary`. Uses `Log.d` for normal flow, `Log.i` for key state changes, and `Log.e` for errors with full stack traces.

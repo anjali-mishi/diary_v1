@@ -50,17 +50,26 @@ We have successfully completed **Phases 1 through 9**, fully realizing the funct
 
 ---
 
+### 🎙 Waveform Recording & Playback (Phase 11 — Tasks 41–43)
+
+*   **Spotify-Style Full-Screen Recording Mode (Task 41a–d):** When recording begins, the entire `CaptureScreen` is replaced by a full-screen recording overlay split 60/40. The top 60% shows a "● Recording" indicator row and a large bold `M:SS` elapsed timer. The bottom 40% hosts a smooth filled bezier wave (7 control points, lerp-animated at factor 0.18 toward targets that refresh every ~500ms) in the brand gradient at 15% alpha. A 64dp red circular FAB at the bottom stops recording.
+*   **Waveform Data Persistence (Task 42):** Amplitude samples are accumulated in a `mutableStateListOf<Float>` during the 100ms poll loop. On stop, they are JSON-encoded as `"[f0,f1,…]"` and saved to a new `waveformData: String?` column on the `Memory` Room entity (schema v2, migration provided).
+*   **Waveform Playback with Animated Playhead (Task 43):** Both the DiaryScreen memory card and the CaptureScreen audio preview now render the stored waveform as 4dp bottom-aligned bars (orange→pink gradient) when `waveformData` is available. A white vertical playhead advances across the bars via `AudioPlayer.currentPosition / duration` polled at 100ms. Old entries without waveform data fall back to the "Voice Memo" text row. The play/stop icon now correctly shows `Pause` while audio is playing.
+
+---
+
 ## 3. The Path Forward (Current Objective)
 
-We are now entering **Phase 10: CaptureScreen UI Enhancements**. The entry experience is complete; the focus now shifts to making the composition screen itself feel premium and guided.
+We are entering **Phase 12: Visual Polish & Branding**. The core recording and playback pipeline is complete. Focus now shifts to typographic identity, color system refinement, and UI consistency.
 
 ### Upcoming Tasks:
-*   **Task 36 — Screen Title:** Add an "Add a memory" heading inside `CaptureScreen` to orient the user.
-*   **Task 37 — Quick Starter Chips:** A horizontal scrollable row of pre-written prompt chips (e.g. "Today I felt…") shown when the text field is empty to help users get started.
-*   **Task 38 — Inline Auto-Suggestions:** Rule-based predictive text chips above the keyboard that suggest short continuations based on the last few typed words.
-*   **Task 39 — Waveform Visualizer:** Replace the red-dot recording indicator with an animated bar waveform driven by `MediaRecorder.maxAmplitude` (or a simulated timer fallback).
-*   **Task 40 — Floating Save CTA:** Move the Save action from the top-right `TextButton` to a full-width floating "Save memory" button at the bottom of the screen.
+*   **Task 44 — Bottom Sheet Polish:** Center the placeholder text and add rounded top corners to the persistent bottom sheet.
+*   **Task 45 — Brand Gradient as Primary Color:** Propagate the `#FF9966 → #FF6699` gradient to the "Save memory" button, FABs, and all interactive elements app-wide.
+*   **Task 46 — Memory Card Date Font:** Remove Playwrite from card timestamps; use the secondary body font.
+*   **Task 47 — Replace Playwrite with Trocchi:** Swap the primary display font from Playwrite Österreich to Trocchi across the whole app.
+*   **Task 48 — Center-Aligned Entry Text:** Center the main text input in `CaptureScreen`.
+*   **Task 49 — White Chip Style:** Give suggestion and predictor chips a solid white background with soft shadow.
 
 > [!TIP]
 > **Developer Goal**
-> Phase 10 is purely additive — no existing flows are broken, only the CaptureScreen composition surface is enriched. Each task is independent and can be validated visually on the emulator before moving to the next.
+> Phase 12 tasks are all purely visual — no data model or navigation changes. Each can be validated independently on the emulator.

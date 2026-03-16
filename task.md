@@ -161,27 +161,28 @@ This is your roadmap to building the Memory App, designed specifically for you a
 
   - [x] **Task 41c: Smooth Filled Wave Shape — Replace Thin Bars.**
     - Replace the current 4dp rectangular bar waveform with a smooth filled wave shape (Spotify-style).
-    - Wave occupies the bottom 40% `Box`. Drawn with a `Canvas` using a `Path` with `cubicTo` bezier curves through the 20 amplitude sample points.
-    - Wave top edge animates organically: amplitude samples are independent per bar (random jitter per bar, not a symmetric bell curve).
-    - Fill: subtle app gradient `#FF9966 → #FF6699` at ~33% alpha (`0x55` prefix).
+    - Wave occupies the full height of the bottom 40% `Box`. Drawn with a `Canvas` using a `Path` with `cubicTo` bezier curves through 7 amplitude control points.
+    - Wave top edge animates fluidly: each frame lerps current heights toward random targets at factor 0.18; targets refresh every ~5 frames (~500ms) for slow organic undulation. Poll interval: 100ms.
+    - Fill: subtle app gradient `#FF9966 → #FF6699` at 15% alpha (`0x26` prefix).
 
   - [x] **Task 41d: Red Stop Button at Bottom Center.**
     - A large 64dp red (`#E53935`) circular FAB with X icon, centered at the bottom of the wave area with 32dp bottom padding.
     - "Stop" label (`bodySmall`) below the button.
     - Tapping calls `stopRecording()`, sets `isRecording = false`, returns to normal CaptureScreen with audio preview.
 
-- [ ] **Task 42: Save Audio as Waveform Data.**
-  - While recording, continuously sample `AudioRecorder.maxAmplitude()` (same 60ms poll used by the visualizer) and accumulate the normalized amplitude values into a `List<Float>`.
-  - When `stopRecording()` is called, persist this list alongside the audio file path in the `Memory` Room entity.
-  - Schema change: add a `waveformData: String` column (JSON-encoded `List<Float>`) to the `Memory` entity and update the DAO/database migration.
-  - The `CaptureViewModel.saveMemory()` call must accept and store the waveform data.
+- [x] **Task 42: Save Audio as Waveform Data.**
+  - While recording, continuously sample `AudioRecorder.maxAmplitude()` (100ms poll) and accumulate normalised amplitude values into a `mutableStateListOf<Float>()`.
+  - When `stopRecording()` is called, the list is JSON-encoded as `"[f0,f1,…]"` and passed to `saveMemory()`.
+  - Schema change: added `waveformData: String?` column to `Memory` entity; `AppDatabase` bumped to version 2 with `MIGRATION_1_2` (`ALTER TABLE memories ADD COLUMN waveformData TEXT`).
+  - `CaptureViewModel.saveMemory()` now accepts a `waveformData: String?` parameter and stores it on the `Memory` object.
 
-- [ ] **Task 43: Waveform Playback on Saved Audio.**
-  - When a saved memory's audio is played (play/stop button in `DiaryScreen` or `EditScreen`), render the stored waveform instead of a static icon.
-  - Waveform display: same bar style as Task 41 (4dp wide, bottom-aligned, orange→pink gradient).
-  - Animate a playhead (a vertical line or highlight) that advances across the bars in sync with audio playback progress (use `MediaPlayer.currentPosition / duration` polled at ~100ms).
-  - When playback stops or completes, reset the playhead to the start.
-  - Does not affect memories that have no waveform data (e.g., old entries) — those continue showing the existing play button UI.
+- [x] **Task 43: Waveform Playback on Saved Audio.**
+  - When a saved memory's audio is played, the stored waveform is decoded and rendered as 4dp vertical bars (orange→pink gradient, bottom-aligned) with a white playhead.
+  - Playhead position is driven by `AudioPlayer.currentPosition / duration` polled at 100ms via `LaunchedEffect`; resets to 0 when playback stops or completes.
+  - `AudioPlayer` exposes `currentPosition: Int` and `duration: Int` getters.
+  - Implemented in both **DiaryScreen** memory card and **CaptureScreen** audio preview row.
+  - Memories without `waveformData` (old entries) continue showing the existing "Voice Memo" text fallback.
+  - Play/pause icon updated: shows `Pause` icon while playing instead of `Close`.
 
 - [ ] **Task 44: Bottom Sheet — Centered Placeholder & Rounded Top Corners.**
   - Center-align the placeholder text *"What's on your mind?"* inside the persistent bottom sheet (currently left-aligned).
