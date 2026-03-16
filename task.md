@@ -184,10 +184,10 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Memories without `waveformData` (old entries) continue showing the existing "Voice Memo" text fallback.
   - Play/pause icon updated: shows `Pause` icon while playing instead of `Close`.
 
-- [ ] **Task 44: Bottom Sheet — Centered Placeholder & Rounded Top Corners.**
+- [x] **Task 44: Bottom Sheet — Centered Placeholder & Rounded Top Corners.**
   - Center-align the placeholder text *"What's on your mind?"* inside the persistent bottom sheet (currently left-aligned).
-  - Apply **rounded top-left and top-right corners** (e.g., `16dp` radius) to the sheet's surface/background shape; bottom corners remain square (sheet is flush with screen bottom).
-  - No other sheet layout or behavior changes.
+  - Added `textAlign = TextAlign.Center` to the placeholder `Text`; it retains `weight(1f)` so it fills the space between the left edge and the icon row.
+  - Rounded top corners were already present (`RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)` via `.clip()`), so no shape change was needed.
 
 - [ ] **Task 45: Gradient as App Primary Color — "Save memory" Button & Global Update.**
   - Define a canonical brand gradient: **soft orange `#FF9966` → soft pink `#FF6699`** (left-to-right / top-to-bottom as context demands). This is the same gradient already used on the persistent bottom sheet and the waveform bars.

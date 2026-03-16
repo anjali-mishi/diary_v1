@@ -275,6 +275,7 @@ fun DiaryScreen(
                     text = "What's on your mind?",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.secondary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
