@@ -110,7 +110,7 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Implement as a `LazyRow` of `SuggestionChip` (Material 3). No backend or ML — static list only.
   - **UI Update:** Chips are bottom-aligned, positioned directly above the mic/photo FAB row (i.e., right above the keypad), not below the title.
 
-- [ ] **Task 38: Inline Auto-Suggestions (Predictive Text Chips).**
+- [x] **Task 38: Inline Auto-Suggestions (Predictive Text Chips).**
   - As the user types, show 2–3 short predictive continuation chips in a strip **above the keyboard area** (between the text field and the mic/photo FABs).
   - Suggestions are **rule-based only** — no ML or external API:
     - Match the last few words of `textContent` against a small curated map of diary sentence starters → likely continuations.

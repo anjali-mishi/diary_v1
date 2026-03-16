@@ -464,6 +464,22 @@ fun MemoryCard(
     }
 }
 
+private val suggestionTriggers = listOf(
+    "today i felt"                  to listOf("happy", "overwhelmed", "at peace"),
+    "i felt"                        to listOf("grateful", "anxious", "content"),
+    "i want to remember"            to listOf("this moment", "how it felt", "every detail"),
+    "i was surprised by"            to listOf("how much", "the way", "how quickly"),
+    "something i'm grateful for"   to listOf("today is", "this week is", "always is"),
+    "i am grateful for"             to listOf("the little things", "my family", "this day"),
+    "today was"                     to listOf("a good day", "challenging", "memorable"),
+    "i am feeling"                  to listOf("hopeful", "tired", "excited"),
+    "i've been thinking about"      to listOf("the future", "how far", "what matters"),
+    "i realized"                    to listOf("that i", "how much", "something important"),
+    "i'm proud of"                  to listOf("myself for", "how i", "the progress"),
+    "i miss"                        to listOf("the feeling", "how things", "those moments"),
+    "a moment i want to remember"   to listOf("is when", "happened today", "forever")
+)
+
 @Composable
 fun CaptureScreen(
     memoryId: String? = null,
@@ -768,6 +784,37 @@ fun CaptureScreen(
         )
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        // Predictive suggestion chips — shown while typing, rule-based only
+        if (textContent.isNotBlank()) {
+            val lower = textContent.trimEnd().lowercase()
+            val suggestions = suggestionTriggers
+                .firstOrNull { (trigger, _) -> lower.endsWith(trigger) }
+                ?.second
+                ?: emptyList()
+            if (suggestions.isNotEmpty()) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                ) {
+                    items(suggestions) { suggestion ->
+                        androidx.compose.material3.SuggestionChip(
+                            onClick = {
+                                textContent = textContent.trimEnd() + " " + suggestion
+                            },
+                            label = {
+                                Text(
+                                    text = suggestion,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+        }
 
         // Quick starter chips — right above the keypad, visible only when blank
         if (textContent.isBlank()) {
