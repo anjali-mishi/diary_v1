@@ -131,7 +131,7 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Implement using `Canvas` composable with `drawRect` for bars.
   - Does not change the audio preview row (play/stop) shown after recording ends.
 
-- [ ] **Task 40: Floating Bottom-Aligned "Save memory" CTA.**
+- [x] **Task 40: Floating Bottom-Aligned "Save memory" CTA.**
   - Move the Save action from the top-right `TextButton` (`Screens.kt:506–520`) to a **full-width floating button at the bottom of the screen**.
   - Button design:
     - Full-width with 24dp horizontal padding.

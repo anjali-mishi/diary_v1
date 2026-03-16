@@ -76,6 +76,12 @@ Executing the specific soft, journal-like aesthetics defined in `design.md` requ
   * Bar fill: `Brush.verticalGradient` from `#FFB280` (soft orange) → `#FFA8C0` (soft pink), matching the Task 35 sheet gradient.
   * Fade-out: `AnimatedVisibility(visible = isRecording, exit = fadeOut(tween(600)))` — when recording stops the coroutine cancels, heights freeze at their last values, and the canvas fades out over 600 ms, giving the "freeze briefly then disappear" feel.
   * The audio preview row (play/stop) shown after recording ends is unchanged.
+* **Floating "Save memory" CTA (Task 40):**
+  * Removed the top-right `TextButton("Save")` from the top bar; its conditional slot is now always a `Spacer(width=48.dp)` to keep the Close `IconButton` left-aligned.
+  * Added a Material 3 filled `Button` ("Save memory") directly above the mic/photo FAB row inside the existing `Column`. This places it physically above the action bar, achieving the "above the FAB row" spec requirement without requiring a `Box` or `Scaffold` restructure.
+  * Visibility matches the old condition: `textContent.isNotBlank() || selectedPhotoUri != null || recordedAudioUri != null`.
+  * Modifier chain: `fillMaxWidth() → padding(bottom=12.dp) → appleShadow(8.dp)`, giving the same soft apple-style shadow used on the FABs.
+  * `CaptureViewModel.saveMemory` call is unchanged.
 * **Starter Chip Copy:**
   * Removed trailing ellipsis (`…`) from all four starter prompt labels so inserted text reads as a clean sentence fragment the user continues naturally.
 

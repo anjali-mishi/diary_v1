@@ -649,24 +649,7 @@ fun CaptureScreen(
                 )
             }
 
-            if (textContent.isNotBlank() || selectedPhotoUri != null || recordedAudioUri != null) {
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        viewModel.saveMemory(textContent, selectedPhotoUri, recordedAudioUri) {
-                            onNavigateBack()
-                        }
-                    }
-                ) {
-                    Text(
-                        text = "Save",
-                        color = MaterialTheme.colorScheme.onBackground,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                    )
-                }
-            } else {
-                Spacer(modifier = Modifier.width(48.dp)) // Placeholder to balance Close button
-            }
+            Spacer(modifier = Modifier.width(48.dp)) // Placeholder to balance Close button
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -886,6 +869,28 @@ fun CaptureScreen(
                         }
                     )
                 }
+            }
+        }
+
+        // Floating "Save memory" CTA — shown when any content exists
+        if (textContent.isNotBlank() || selectedPhotoUri != null || recordedAudioUri != null) {
+            androidx.compose.material3.Button(
+                onClick = {
+                    viewModel.saveMemory(textContent, selectedPhotoUri, recordedAudioUri) {
+                        onNavigateBack()
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+                    .appleShadow(8.dp),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Text(
+                    text = "Save memory",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                )
             }
         }
 
