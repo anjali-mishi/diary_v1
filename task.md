@@ -147,6 +147,29 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Each bar must be exactly **4dp wide** (thin lines), with equal gaps between them.
   - Keep all other waveform behavior (amplitude polling, orange→pink gradient, fade-out on stop) unchanged.
 
+  ### Task 41 Sub-tasks: Spotify-style Full-Screen Recording Mode
+
+  - [x] **Task 41a: Full-Screen Recording Overlay — Hide Normal UI.**
+    - When `isRecording == true`, replace the entire normal CaptureScreen layout with a dedicated full-screen recording view.
+    - Elements to hide: title "Add a memory", text input field, suggestion chips (starters + predictive), photo FAB, save button, audio preview row.
+    - The recording view is a `Column` split into two sections: top 60% and bottom 40%.
+
+  - [x] **Task 41b: Recording Top Bar — "● Recording" Indicator + Timer.**
+    - Top row: X button on the left (stops recording, saves audio), red dot + "Recording" text centered.
+    - Below, vertically centered in the top 60% area: large bold elapsed timer in `M:SS` format (e.g. `0:04`), using `displayLarge` typography.
+    - Timer tracks seconds since recording started via `System.currentTimeMillis()` polled in the existing amplitude `LaunchedEffect`.
+
+  - [x] **Task 41c: Smooth Filled Wave Shape — Replace Thin Bars.**
+    - Replace the current 4dp rectangular bar waveform with a smooth filled wave shape (Spotify-style).
+    - Wave occupies the bottom 40% `Box`. Drawn with a `Canvas` using a `Path` with `cubicTo` bezier curves through the 20 amplitude sample points.
+    - Wave top edge animates organically: amplitude samples are independent per bar (random jitter per bar, not a symmetric bell curve).
+    - Fill: subtle app gradient `#FF9966 → #FF6699` at ~33% alpha (`0x55` prefix).
+
+  - [x] **Task 41d: Red Stop Button at Bottom Center.**
+    - A large 64dp red (`#E53935`) circular FAB with X icon, centered at the bottom of the wave area with 32dp bottom padding.
+    - "Stop" label (`bodySmall`) below the button.
+    - Tapping calls `stopRecording()`, sets `isRecording = false`, returns to normal CaptureScreen with audio preview.
+
 - [ ] **Task 42: Save Audio as Waveform Data.**
   - While recording, continuously sample `AudioRecorder.maxAmplitude()` (same 60ms poll used by the visualizer) and accumulate the normalized amplitude values into a `List<Float>`.
   - When `stopRecording()` is called, persist this list alongside the audio file path in the `Memory` Room entity.

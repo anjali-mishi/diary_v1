@@ -60,6 +60,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.toArgb
@@ -502,6 +503,7 @@ fun CaptureScreen(
     var isRecording by remember { mutableStateOf(false) }
     var isAudioPlaying by remember { mutableStateOf(false) }
     var waveBarHeights by remember { mutableStateOf(List(20) { 0.05f }) }
+    var recordingSeconds by remember { mutableStateOf(0) }
 
     val context = LocalContext.current
     val audioRecorder = remember { AudioRecorder(context) }
@@ -593,21 +595,22 @@ fun CaptureScreen(
         }
     }
 
-    // Poll amplitude while recording to animate waveform bars
+    // Poll amplitude and track elapsed time while recording
     androidx.compose.runtime.LaunchedEffect(isRecording) {
         if (isRecording) {
+            recordingSeconds = 0
+            val startTime = System.currentTimeMillis()
             while (true) {
                 val amp = audioRecorder.maxAmplitude()
                 val norm = (amp / 32767f).coerceIn(0f, 1f)
-                waveBarHeights = List(20) { i ->
-                    val spread = 1f - kotlin.math.abs(i - 9.5f) / 9.5f
-                    val jitter = kotlin.random.Random.nextFloat() * 0.25f
-                    (norm * spread + jitter + 0.05f).coerceIn(0.05f, 1f)
+                waveBarHeights = List(20) { _ ->
+                    val jitter = kotlin.random.Random.nextFloat() * 0.35f
+                    (norm * 0.65f + jitter + 0.1f).coerceIn(0.1f, 1f)
                 }
+                recordingSeconds = ((System.currentTimeMillis() - startTime) / 1000).toInt()
                 delay(60)
             }
         }
-        // on stop: heights freeze in place; AnimatedVisibility fades the Canvas out
     }
 
     // ─── Discard confirmation dialog ──────────────────────────────────────────
@@ -629,323 +632,417 @@ fun CaptureScreen(
         )
     }
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp)
     ) {
-        // Top Bar: Close Button & Save Button
-        androidx.compose.foundation.layout.Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = { handleBack() }) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
-            }
-
-            Spacer(modifier = Modifier.width(48.dp)) // Placeholder to balance Close button
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Add a memory",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.secondary
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Waveform Recording Visualizer
-        AnimatedVisibility(
-            visible = isRecording,
-            exit = fadeOut(tween(600))
-        ) {
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .padding(bottom = 16.dp)
-            ) {
-                val barCount = waveBarHeights.size
-                val barWidth = 4.dp.toPx()
-                val gapWidth = if (barCount > 1) (size.width - barWidth * barCount) / (barCount - 1) else 0f
-                waveBarHeights.forEachIndexed { i, heightFraction ->
-                    val barHeight = (heightFraction * size.height).coerceAtLeast(2f)
-                    val x = i * (barWidth + gapWidth)
-                    val y = size.height - barHeight
-                    val brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFFFFB280), Color(0xFFFFA8C0)),
-                        startY = y,
-                        endY = size.height
-                    )
-                    drawRect(brush = brush, topLeft = Offset(x, y), size = Size(barWidth, barHeight))
-                }
-            }
-        }
-
-        // Optional Image Preview (Moved to top, made larger per design)
-        if (selectedPhotoUri != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(280.dp)
-                    .padding(bottom = 16.dp)
-                    .clip(RoundedCornerShape(24.dp))
-            ) {
-                AsyncImage(
-                    model = selectedPhotoUri,
-                    contentDescription = "Selected memory photo",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                // Remove photo button
-                IconButton(
-                    onClick = { selectedPhotoUri = null },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
-                        .size(32.dp)
-                        .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Remove photo",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-
-        // Optional Audio Preview with play/stop
-        if (recordedAudioUri != null) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .padding(bottom = 16.dp)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-            ) {
-                // Play / Stop button
-                IconButton(
-                    onClick = {
-                        if (isAudioPlaying) {
-                            audioPlayer.stop()
-                            isAudioPlaying = false
-                        } else {
-                            audioPlayer.playFile(recordedAudioUri!!) {
-                                isAudioPlaying = false
-                            }
-                            isAudioPlaying = true
-                        }
-                    },
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isAudioPlaying) Icons.Default.Close else Icons.Default.PlayArrow,
-                        contentDescription = if (isAudioPlaying) "Stop" else "Play memo",
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isAudioPlaying) "Playing..." else "Voice Memo",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f)
-                )
-                // Remove button
-                IconButton(
-                    onClick = {
-                        audioPlayer.stop()
-                        isAudioPlaying = false
-                        recordedAudioUri = null
-                    },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Remove audio",
-                        tint = MaterialTheme.colorScheme.secondary
-                    )
-                }
-            }
-        }
-
-        // Main Text Input Area
-        BasicTextField(
-            value = TextFieldValue(textContent, textFieldSelection),
-            onValueChange = { textContent = it.text; textFieldSelection = it.selection },
-            textStyle = MaterialTheme.typography.bodyLarge.copy(
-                color = MaterialTheme.colorScheme.onBackground
-            ),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .focusRequester(focusRequester),
-            decorationBox = { innerTextField ->
-                if (textContent.isEmpty() && selectedPhotoUri == null && recordedAudioUri == null) {
-                    Text(
-                        text = "I remember...",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
-                innerTextField()
-            }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Predictive suggestion chips — shown while typing, rule-based only
-        if (textContent.isNotBlank()) {
-            val lower = textContent.trimEnd().lowercase()
-            val suggestions = suggestionTriggers
-                .firstOrNull { (trigger, _) -> lower.endsWith(trigger) }
-                ?.second
-                ?: emptyList()
-            if (suggestions.isNotEmpty()) {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+        if (isRecording) {
+            // ─── Recording Mode (Spotify-style full-screen) ────────────────────
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Top 60%: recording indicator + large timer
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp)
+                        .weight(0.6f)
                 ) {
-                    items(suggestions) { suggestion ->
-                        androidx.compose.material3.SuggestionChip(
+                    // Recording indicator row at top
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 8.dp)
+                            .align(Alignment.TopCenter),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                    ) {
+                        IconButton(onClick = {
+                            recordedAudioUri = audioRecorder.stopRecording()
+                            isRecording = false
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Stop Recording",
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                        androidx.compose.foundation.layout.Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(Color(0xFFE53935), CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Recording",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(48.dp))
+                    }
+                    // Large elapsed timer centered in top area
+                    val minutes = recordingSeconds / 60
+                    val secs = recordingSeconds % 60
+                    Text(
+                        text = "$minutes:${secs.toString().padStart(2, '0')}",
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                // Bottom 40%: smooth filled wave + stop button
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(0.4f)
+                ) {
+                    // Smooth wave canvas — bezier curves through amplitude samples
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val pts = waveBarHeights
+                        val segW = size.width / (pts.size - 1).toFloat()
+                        val maxWaveH = size.height * 0.7f
+                        val path = Path()
+                        path.moveTo(0f, size.height)
+                        path.lineTo(0f, size.height - pts[0] * maxWaveH)
+                        for (i in 0 until pts.size - 1) {
+                            val x1 = i * segW
+                            val y1 = size.height - pts[i] * maxWaveH
+                            val x2 = (i + 1) * segW
+                            val y2 = size.height - pts[i + 1] * maxWaveH
+                            val cpX = (x1 + x2) / 2f
+                            path.cubicTo(cpX, y1, cpX, y2, x2, y2)
+                        }
+                        path.lineTo(size.width, size.height)
+                        path.close()
+                        drawPath(
+                            path = path,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color(0x55FF9966), Color(0x55FF6699)),
+                                startY = 0f,
+                                endY = size.height
+                            )
+                        )
+                    }
+                    // Red stop button at bottom center
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        androidx.compose.material3.FloatingActionButton(
                             onClick = {
-                                val newText = textContent.trimEnd() + " " + suggestion
-                                textContent = newText
-                                textFieldSelection = TextRange(newText.length)
+                                recordedAudioUri = audioRecorder.stopRecording()
+                                isRecording = false
                             },
-                            label = {
-                                Text(
-                                    text = suggestion,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
+                            modifier = Modifier
+                                .size(64.dp)
+                                .appleShadow(100.dp),
+                            shape = CircleShape,
+                            containerColor = Color(0xFFE53935),
+                            contentColor = Color.White,
+                            elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Stop Recording",
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Stop",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 }
             }
-        }
-
-        // Quick starter chips — right above the keypad, visible only when blank
-        if (textContent.isBlank()) {
-            val starters = listOf(
-                "Today I felt",
-                "Something I'm grateful for",
-                "A moment I want to remember",
-                "I was surprised by"
-            )
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+        } else {
+            // ─── Normal Capture Mode ───────────────────────────────────────────
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp)
+                    .fillMaxSize()
+                    .padding(24.dp)
             ) {
-                items(starters) { prompt ->
-                    androidx.compose.material3.SuggestionChip(
-                        onClick = {
-                            textContent = prompt
-                            textFieldSelection = TextRange(prompt.length)
-                        },
-                        label = {
-                            Text(
-                                text = prompt,
-                                style = MaterialTheme.typography.bodySmall
+                // Top Bar: Close Button
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { handleBack() }) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(48.dp))
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Add a memory",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Optional Image Preview
+                if (selectedPhotoUri != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(280.dp)
+                            .padding(bottom = 16.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                    ) {
+                        AsyncImage(
+                            model = selectedPhotoUri,
+                            contentDescription = "Selected memory photo",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        IconButton(
+                            onClick = { selectedPhotoUri = null },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(12.dp)
+                                .size(32.dp)
+                                .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Remove photo",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
-                    )
-                }
-            }
-        }
-
-        // Floating "Save memory" CTA — shown when any content exists
-        if (textContent.isNotBlank() || selectedPhotoUri != null || recordedAudioUri != null) {
-            androidx.compose.material3.Button(
-                onClick = {
-                    viewModel.saveMemory(textContent, selectedPhotoUri, recordedAudioUri) {
-                        onNavigateBack()
                     }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp)
-                    .appleShadow(8.dp),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Text(
-                    text = "Save memory",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
-                )
-            }
-        }
+                }
 
-        // Bottom Action Bar: Mic/Record + Photo
-        androidx.compose.foundation.layout.Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Mic Button — tap to start/stop recording
-            androidx.compose.material3.FloatingActionButton(
-                onClick = {
-                    if (isRecording) {
-                        recordedAudioUri = audioRecorder.stopRecording()
-                        isRecording = false
-                    } else {
-                        val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-                        if (permission == PackageManager.PERMISSION_GRANTED) {
-                            audioRecorder.startRecording()
-                            isRecording = true
-                        } else {
-                            recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                // Optional Audio Preview with play/stop
+                if (recordedAudioUri != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(bottom = 16.dp)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                if (isAudioPlaying) {
+                                    audioPlayer.stop()
+                                    isAudioPlaying = false
+                                } else {
+                                    audioPlayer.playFile(recordedAudioUri!!) {
+                                        isAudioPlaying = false
+                                    }
+                                    isAudioPlaying = true
+                                }
+                            },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isAudioPlaying) Icons.Default.Close else Icons.Default.PlayArrow,
+                                contentDescription = if (isAudioPlaying) "Stop" else "Play memo",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isAudioPlaying) "Playing..." else "Voice Memo",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = {
+                                audioPlayer.stop()
+                                isAudioPlaying = false
+                                recordedAudioUri = null
+                            },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Remove audio",
+                                tint = MaterialTheme.colorScheme.secondary
+                            )
                         }
                     }
-                },
-                modifier = Modifier.appleShadow(100.dp),
-                shape = androidx.compose.foundation.shape.CircleShape,
-                containerColor = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.surface,
-                contentColor = if (isRecording) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onSurface,
-                elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
-            ) {
-                Icon(
-                    imageVector = if (isRecording) Icons.Default.Close else Icons.Default.Mic,
-                    contentDescription = if (isRecording) "Stop Recording" else "Record Audio"
-                )
-            }
+                }
 
-            // Photo/Gallery Button
-
-            androidx.compose.material3.FloatingActionButton(
-                onClick = { 
-                    photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) 
-                },
-                modifier = Modifier.appleShadow(100.dp),
-                shape = androidx.compose.foundation.shape.CircleShape,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = "Attach Photo"
+                // Main Text Input Area
+                BasicTextField(
+                    value = TextFieldValue(textContent, textFieldSelection),
+                    onValueChange = { textContent = it.text; textFieldSelection = it.selection },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onBackground
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .focusRequester(focusRequester),
+                    decorationBox = { innerTextField ->
+                        if (textContent.isEmpty() && selectedPhotoUri == null && recordedAudioUri == null) {
+                            Text(
+                                text = "I remember...",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                        innerTextField()
+                    }
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Predictive suggestion chips — shown while typing, rule-based only
+                if (textContent.isNotBlank()) {
+                    val lower = textContent.trimEnd().lowercase()
+                    val suggestions = suggestionTriggers
+                        .firstOrNull { (trigger, _) -> lower.endsWith(trigger) }
+                        ?.second
+                        ?: emptyList()
+                    if (suggestions.isNotEmpty()) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp)
+                        ) {
+                            items(suggestions) { suggestion ->
+                                androidx.compose.material3.SuggestionChip(
+                                    onClick = {
+                                        val newText = textContent.trimEnd() + " " + suggestion
+                                        textContent = newText
+                                        textFieldSelection = TextRange(newText.length)
+                                    },
+                                    label = {
+                                        Text(
+                                            text = suggestion,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Quick starter chips — visible only when blank
+                if (textContent.isBlank()) {
+                    val starters = listOf(
+                        "Today I felt",
+                        "Something I'm grateful for",
+                        "A moment I want to remember",
+                        "I was surprised by"
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp)
+                    ) {
+                        items(starters) { prompt ->
+                            androidx.compose.material3.SuggestionChip(
+                                onClick = {
+                                    textContent = prompt
+                                    textFieldSelection = TextRange(prompt.length)
+                                },
+                                label = {
+                                    Text(
+                                        text = prompt,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Floating "Save memory" CTA — shown when any content exists
+                if (textContent.isNotBlank() || selectedPhotoUri != null || recordedAudioUri != null) {
+                    androidx.compose.material3.Button(
+                        onClick = {
+                            viewModel.saveMemory(textContent, selectedPhotoUri, recordedAudioUri) {
+                                onNavigateBack()
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp)
+                            .appleShadow(8.dp),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text(
+                            text = "Save memory",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                // Bottom Action Bar: Mic + Photo
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Mic Button — tap to start recording
+                    androidx.compose.material3.FloatingActionButton(
+                        onClick = {
+                            val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                            if (permission == PackageManager.PERMISSION_GRANTED) {
+                                audioRecorder.startRecording()
+                                isRecording = true
+                            } else {
+                                recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        },
+                        modifier = Modifier.appleShadow(100.dp),
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Record Audio"
+                        )
+                    }
+
+                    // Photo/Gallery Button
+                    androidx.compose.material3.FloatingActionButton(
+                        onClick = {
+                            photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        },
+                        modifier = Modifier.appleShadow(100.dp),
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = "Attach Photo"
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
-        
-        Spacer(modifier = Modifier.height(16.dp)) // Bottom padding
     }
 }
 
