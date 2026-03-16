@@ -16,7 +16,7 @@ Our execution strategy has been rooted in disciplined, document-driven developme
 
 ## 2. All That We've Done (Completed Milestones)
 
-We have successfully completed **Phases 1 through 8**, fully realizing the functional requirements of the MVP.
+We have successfully completed **Phases 1 through 9**, fully realizing the functional MVP and the premium entry-point experience.
 
 ### 🏗 Foundation & Architecture (Phases 1-2)
 *   Initialized a clean Android Studio project using **Kotlin** and **Jetpack Compose**.
@@ -41,16 +41,26 @@ We have successfully completed **Phases 1 through 8**, fully realizing the funct
 *   Refactored temporary URI media storage into persistent internal app storage to ensure images don't break over time.
 *   Overrode default Material 3 tokens to strictly adhere to our custom `design.md` typography and soft-shadow aesthetics.
 
+### ✨ Premium Entry Point (Phase 9)
+*   **Persistent Bottom Sheet:** Replaced the FAB with a persistent sheet anchored at the bottom 15% of `DiaryScreen` — always visible, never dismissible.
+*   **Smart Tap Zones:** Each zone on the sheet initiates a distinct flow — tapping the text prompt auto-focuses the keyboard, tapping the mic auto-starts recording, tapping the image icon auto-opens the photo picker. Action is passed through the nav route and handled via `LaunchedEffect` in `CaptureScreen`.
+*   **Bottom-to-Top Slide Animation:** `CaptureScreen` slides in from the bottom using Compose Navigation's `enterTransition`/`exitTransition` for a native sheet-like feel.
+*   **Gradient Strip:** A 30dp soft orange→pink gradient overlaid immediately above the sheet for a polished visual boundary.
+*   **Structured Logging:** Added `Diary.*` Logcat tags across all layers (Navigation, ViewModels, Repository, Database, AudioPlayer, AudioRecorder, EmotionDetector, ImageStorage) for full observability during debugging.
+
 ---
 
 ## 3. The Path Forward (Current Objective)
 
-We are now officially entering **Phase 9: Premium UI**. The foundation is rock solid, and our strategy now shifts purely toward "Wow Factor" mechanics that elevate the app from standard to premium.
+We are now entering **Phase 10: CaptureScreen UI Enhancements**. The entry experience is complete; the focus now shifts to making the composition screen itself feel premium and guided.
 
 ### Upcoming Tasks:
-*   **The Instagram-Style Detail Screen:** Transitioning away from simple card tap-to-edit. Tapping a memory will now open a massive, immersive detail view where the photo or an animated mood-gradient occupies 70% of the screen.
-*   **The Spotify-Style Audio Player:** Voice notes will no longer stop if you leave the screen. We are building a persistent, liquid-glass bottom bar player that follows the user globally until they dismiss it.
+*   **Task 36 — Screen Title:** Add an "Add a memory" heading inside `CaptureScreen` to orient the user.
+*   **Task 37 — Quick Starter Chips:** A horizontal scrollable row of pre-written prompt chips (e.g. "Today I felt…") shown when the text field is empty to help users get started.
+*   **Task 38 — Inline Auto-Suggestions:** Rule-based predictive text chips above the keyboard that suggest short continuations based on the last few typed words.
+*   **Task 39 — Waveform Visualizer:** Replace the red-dot recording indicator with an animated bar waveform driven by `MediaRecorder.maxAmplitude` (or a simulated timer fallback).
+*   **Task 40 — Floating Save CTA:** Move the Save action from the top-right `TextButton` to a full-width floating "Save memory" button at the bottom of the screen.
 
 > [!TIP]
 > **Developer Goal**
-> As we dive into Phase 9, our strategy requires deliberate alignment. Before implementing the Spotify and Instagram-style view layouts, we will ensure all interactive gestures (swipe-to-dismiss vs. back buttons) and visual details (color pulses vs. parallax) are confirmed.
+> Phase 10 is purely additive — no existing flows are broken, only the CaptureScreen composition surface is enriched. Each task is independent and can be validated visually on the emulator before moving to the next.

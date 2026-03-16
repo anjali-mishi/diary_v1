@@ -47,3 +47,23 @@ Executing the specific soft, journal-like aesthetics defined in `design.md` requ
 
 * **Unsaved Changes Guard:** Implemented a robust `isDirty` comparator checking current editor state against original database loads. Intercepted both software (✕ Button) and hardware (Gesture/Back Arrow) edge navigations via Android's `BackHandler` API to trigger an `AlertDialog` confirming destructive exit intent.
 * **Contextual Edit vs View:** Opted for a "Long Press" modal workflow inside the index feed for triggering edits/deletions rather than cluttering the clean UI cards with static edit/trash icons.
+
+## Phase 9: Capture Entry Point & Animation
+
+* **Persistent Bottom Sheet over FAB:**
+  * Removed the `+` FAB. Replaced with a persistent sheet anchored at the bottom 15% of `DiaryScreen` using `BoxWithConstraints` (required to compute `sheetHeight` as a `Dp` value for both the sheet and the gradient overlay).
+  * Sheet is non-dismissible by design — it is always the primary memory creation entry point.
+* **Smart Sheet Tap Zones:**
+  * The sheet is split into three independent tap targets rather than a single global clickable, so each icon initiates its own flow without forcing the user through an extra step.
+  * *Text prompt* → navigates to `CaptureScreen` with `action=text`; a `LaunchedEffect` fires `FocusRequester.requestFocus()` + `keyboardController.show()` after a 300ms delay to let the slide-up animation settle before the keyboard appears.
+  * *Mic icon* → navigates with `action=voice`; `LaunchedEffect` checks `RECORD_AUDIO` permission and either starts `AudioRecorder` immediately or launches the permission request.
+  * *Image icon* → navigates with `action=image`; `LaunchedEffect` fires `photoPickerLauncher.launch()` after a 200ms delay.
+  * Action is threaded through the nav route as a nullable string argument (`?action={action}`), keeping the edit flow (`?memoryId={id}`) fully unchanged.
+* **Bottom-to-Top Slide Animation:**
+  * `CaptureScreen` uses Compose Navigation's `enterTransition`/`exitTransition` on the composable route — `slideInVertically { fullHeight }` + `fadeIn` on enter (400ms/300ms), `slideOutVertically { fullHeight }` + `fadeOut` on exit (350ms/250ms). Declared at the nav-graph level so the animation applies regardless of which sheet zone was tapped.
+* **Gradient Strip Above Sheet:**
+  * A 30dp `Box` with `Brush.verticalGradient` (transparent → soft orange → soft pink) is overlaid at `BottomCenter` and offset upward by `sheetHeight`, sitting flush against the sheet's top edge. Purely decorative; diary content above it is fully unaffected.
+
+## Observability / Debugging
+
+* **Structured Logcat Logging:** Added `android.util.Log` calls across all layers with a consistent `Diary.<Layer>` tag convention (`Diary.MainActivity`, `Diary.Navigation`, `Diary.CaptureVM`, `Diary.DiaryVM`, `Diary.Repository`, `Diary.Database`, `Diary.AudioPlayer`, `Diary.AudioRecorder`, `Diary.EmotionDetector`, `Diary.ImageStorage`). Filter all app logs in Logcat with `tag:Diary`. Uses `Log.d` for normal flow, `Log.i` for key state changes, and `Log.e` for errors with full stack traces.
