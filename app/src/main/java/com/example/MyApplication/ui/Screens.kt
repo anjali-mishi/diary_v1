@@ -271,17 +271,19 @@ fun DiaryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Text prompt — tapping opens CaptureScreen with keyboard focused
-                Text(
-                    text = "What's on your mind?",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.secondary,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clickable { onNavigateToCapture("text") }
-                        .padding(vertical = 8.dp)
-                )
+                        .clickable { onNavigateToCapture("text") },
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = "What's on your mind?",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
