@@ -97,7 +97,7 @@ This is your roadmap to building the Memory App, designed specifically for you a
 
 ## Phase 10: CaptureScreen UI Enhancements
 
-- [ ] **Task 36: Screen Title.**
+- [x] **Task 36: Screen Title.**
   - Add a title **"Add a memory"** at the top of `CaptureScreen`, below the close-button row and above the text input.
   - Typography: `MaterialTheme.typography.headlineMedium`, muted/secondary color so it doesn't compete with user input.
   - Reference: top bar area in `Screens.kt:492–524`.

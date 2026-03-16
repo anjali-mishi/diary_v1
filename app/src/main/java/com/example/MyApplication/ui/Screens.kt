@@ -626,7 +626,15 @@ fun CaptureScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Add a memory",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.secondary
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Live Recording Indicator
         if (isRecording) {
