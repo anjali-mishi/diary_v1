@@ -141,3 +141,26 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Visibility: same conditional as current Save button — only shown when any content exists (`textContent.isNotBlank() || selectedPhotoUri != null || recordedAudioUri != null`).
   - Remove the existing `TextButton` Save from the top bar; replace its slot with `Spacer` so the Close button remains left-aligned.
   - Save logic in `CaptureViewModel.kt:36–78` remains unchanged.
+
+- [ ] **Task 41: Waveform Recording Visualizer — Bottom-Aligned & Thin Bars.**
+  - Adjust the animated waveform from Task 39 so bars are **bottom-aligned** (grow upward from a fixed baseline) rather than center-aligned (current implementation grows from center).
+  - Each bar must be exactly **4dp wide** (thin lines), with equal gaps between them.
+  - Keep all other waveform behavior (amplitude polling, orange→pink gradient, fade-out on stop) unchanged.
+
+- [ ] **Task 42: Save Audio as Waveform Data.**
+  - While recording, continuously sample `AudioRecorder.maxAmplitude()` (same 60ms poll used by the visualizer) and accumulate the normalized amplitude values into a `List<Float>`.
+  - When `stopRecording()` is called, persist this list alongside the audio file path in the `Memory` Room entity.
+  - Schema change: add a `waveformData: String` column (JSON-encoded `List<Float>`) to the `Memory` entity and update the DAO/database migration.
+  - The `CaptureViewModel.saveMemory()` call must accept and store the waveform data.
+
+- [ ] **Task 43: Waveform Playback on Saved Audio.**
+  - When a saved memory's audio is played (play/stop button in `DiaryScreen` or `EditScreen`), render the stored waveform instead of a static icon.
+  - Waveform display: same bar style as Task 41 (4dp wide, bottom-aligned, orange→pink gradient).
+  - Animate a playhead (a vertical line or highlight) that advances across the bars in sync with audio playback progress (use `MediaPlayer.currentPosition / duration` polled at ~100ms).
+  - When playback stops or completes, reset the playhead to the start.
+  - Does not affect memories that have no waveform data (e.g., old entries) — those continue showing the existing play button UI.
+
+- [ ] **Task 44: Bottom Sheet — Centered Placeholder & Rounded Top Corners.**
+  - Center-align the placeholder text *"What's on your mind?"* inside the persistent bottom sheet (currently left-aligned).
+  - Apply **rounded top-left and top-right corners** (e.g., `16dp` radius) to the sheet's surface/background shape; bottom corners remain square (sheet is flush with screen bottom).
+  - No other sheet layout or behavior changes.
