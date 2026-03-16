@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -143,21 +142,42 @@ fun DiaryScreen(
         )
     }
 
-    BoxWithConstraints(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        val sheetHeight = maxHeight * 0.2f
+        // Empty state — centered in full screen, behind header and sheet
+        if (memories.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 32.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Your diary is empty.",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Tap below to capture your first memory.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+        }
 
         if (memories.isNotEmpty()) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 24.dp), // Increased horizontal whitespace (Apple-style margins)
-                verticalArrangement = Arrangement.spacedBy(20.dp) // Wider gap between cards
+                    .padding(horizontal = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                item { Spacer(modifier = Modifier.height(80.dp)) } // Top padding for header
+                item { Spacer(modifier = Modifier.height(80.dp)) }
                 items(memories) { memory ->
                     MemoryCard(
                         memory = memory,
@@ -165,11 +185,11 @@ fun DiaryScreen(
                         onLongClick = { memoryToEditOrDelete = memory }
                     )
                 }
-                item { Spacer(modifier = Modifier.height(sheetHeight + 16.dp)) } // Clear the persistent sheet
+                item { Spacer(modifier = Modifier.height(200.dp)) } // Bottom clearance for sheet
             }
         }
 
-        // Header
+        // Header — drawn on top of list/empty state
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -194,37 +214,16 @@ fun DiaryScreen(
             )
         }
 
-        // Persistent capture entry sheet — always 20% of screen, never dismissible
+        // Persistent capture entry sheet — always 20% of screen height, never dismissible
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(sheetHeight)
+                .fillMaxHeight(0.2f)
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .background(MaterialTheme.colorScheme.surface)
+                .clickable { onNavigateToCapture() }
         )
-
-        // Empty state rendered last so it appears above the header and sheet
-        if (memories.isEmpty()) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Your diary is empty.",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Tap below to capture your first memory.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-            }
-        }
     }
 }
 
