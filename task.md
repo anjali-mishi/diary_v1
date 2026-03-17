@@ -290,3 +290,101 @@ Span types:
     - Remaining text, if any, renders below in `BodySmall` (max 3 lines, ellipsized).
     - Date chip and emotion tag sit at the bottom of the card, tinted to contrast against the gradient (use `onSurface` or a darkened tone colour).
     - Card retains `appleShadow` and `1-col` square span from Task 50.
+
+---
+
+## Phase 14: Memory Detail Layer
+
+### Interaction Model
+
+```
+IndexScreen (bento grid)
+  │
+  ├─ TAP card ──────────────────────▶ MemoryDetailScreen (read-only)
+  │                                       │
+  │                                       ├─ TAP edit button (top-right) ──▶ CaptureScreen (edit mode)
+  │                                       │
+  │                                       └─ dismiss (back / swipe-down)  ──▶ IndexScreen
+  │
+  └─ SWIPE LEFT on card ────────────▶ CaptureScreen (edit mode, same memory)
+```
+
+### Detail Layer Visual Spec
+
+```
+┌─────────────────────────────────────────┐
+│  ← (back)               [edit ✎]  top-right
+├─────────────────────────────────────────┤
+│                                         │
+│   PARALLAX MEDIA HERO                   │  photo → AsyncImage, contentScale=Crop
+│   (shrinks as user scrolls up)          │  audio → sentiment colour block + play btn
+│                                         │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤  ← content scrolls up over hero
+│  Full memory text (uncapped)            │
+│  Date  •  Emotion tag                   │
+│  Audio player pill (if audio present)   │
+│                                         │
+│  [background: subtle sentiment→appBg    │
+│   gradient behind the content area]     │
+└─────────────────────────────────────────┘
+
+Text-only memory:
+┌─────────────────────────────────────────┐
+│  ← (back)               [edit ✎]        │
+│                                         │
+│  Full memory text rendered in large     │  HeadlineMedium / DisplaySmall
+│  type whose colour is a vertical        │
+│  gradient: sentiment colour at bottom   │
+│  bleeding upward into black at top.     │
+│  (Brush.linearGradient as TextStyle     │
+│   brush, start=bottom, end=top)         │
+│                                         │
+│  Date  •  Emotion tag                   │
+│                                         │
+│  [full-screen sentiment→appBg gradient  │
+│   background, same as other types]      │
+└─────────────────────────────────────────┘
+```
+
+### Background Gradient Rule
+
+- Always 3-stop vertical gradient: `[sentimentColor.copy(alpha=0.18f), sentimentColor.copy(alpha=0.06f), appBackground]`
+- Occupies the full screen behind all content.
+- `sentimentColor` = the `EmotionTone` → `Color` mapping already in the design system.
+
+---
+
+- [ ] **Task 54: DetailScreen Scaffold + Navigation Wiring.**
+  - Create `MemoryDetailScreen(memoryId: Long)` composable in a new file.
+  - Register it as a destination in `NavHost` with route `"memory/{memoryId}"`.
+  - In `IndexScreen`, replace the existing card `onClick` lambda with `navController.navigate("memory/${memory.id}")`.
+  - Add a `CaptureScreen` navigation route for edit mode: `"capture/{memoryId}"` — reuses existing `CaptureScreen` but pre-populates fields from the given memory entity.
+  - `MemoryDetailScreen` has a top app bar with a back arrow (left) and an edit `IconButton` (pencil icon, top-right); tapping edit navigates to `"capture/{memoryId}"`.
+  - No UI chrome beyond the app bar in this task — content area left as a placeholder `Box`.
+
+- [ ] **Task 55: Card-to-Fullscreen Expand Transition.**
+  - Wrap `NavHost` in `SharedTransitionLayout` (Compose `1.7+` shared-element API).
+  - Apply `Modifier.sharedElement(...)` to the card container in `IndexScreen` and the root container in `MemoryDetailScreen`, keyed on `"card-${memory.id}"`.
+  - Transition spec: `spring(stiffness = Spring.StiffnessMediumLow)` for bounds, `tween(300, easing = FastOutSlowInEasing)` for fade — approximates ease-in/ease-out feel.
+  - If `SharedTransitionLayout` is unavailable for the project's Compose version, fall back to `AnimatedContent` with a `slideInVertically + fadeIn` / `slideOutVertically + fadeOut` pair using the same easing.
+  - Ensure the card's corner radius animates from its resting value (`12.dp`) to `0.dp` as the card expands to fill the screen.
+
+- [ ] **Task 56: Parallax Media Hero (Photo & Audio Cards).**
+  - In `MemoryDetailScreen`, implement a `NestedScrollConnection` that translates the hero image/block at **0.5× the scroll velocity** (parallax factor), clamped so the hero never scrolls fully off-screen until the content column reaches its natural top.
+  - **Photo card:** `AsyncImage` (Coil), `fillMaxWidth`, initial height `300.dp`, `contentScale = Crop`. Clips to a `RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)`.
+  - **Audio card:** Sentiment colour block, initial height `220.dp`, centred play/pause `IconButton` (`56.dp`) + duration label. Reuse audio player logic from Task 52. Block clips to same bottom-rounded shape.
+  - Content column (text, date, emotion, audio pill) sits in a `LazyColumn` beneath the hero, with `16.dp` horizontal padding and `20.dp` top padding inside the first item.
+  - Memory text is rendered **uncapped** (no `maxLines` limit) in `BodyLarge`.
+
+- [ ] **Task 57: Sentiment Gradient Background + Typography Hero (Text-Only Cards).**
+  - **Background (all card types):** Draw a full-screen `Box` with `background(Brush.verticalGradient([sentimentColor.copy(0.18f), sentimentColor.copy(0.06f), appBackground]))` as the lowest layer behind the scroll content.
+  - **Text-only hero:** No parallax block. Instead, render the full memory text in `DisplaySmall` (or `HeadlineLarge`) style using `TextStyle(brush = Brush.linearGradient(colors = listOf(Color.Black, sentimentColor), start = Offset(0f, 0f), end = Offset(0f, Float.POSITIVE_INFINITY)))` — black at the top, sentiment colour at the bottom.
+  - Text sits in the upper portion of the screen with generous vertical padding (`top = 72.dp` to clear the app bar, `horizontal = 24.dp`).
+  - Date chip and emotion tag appear below the text body with `top = 24.dp` spacing.
+  - No parallax scroll connection needed for text-only; standard `LazyColumn` or `Column` with `verticalScroll`.
+
+- [ ] **Task 58: Swipe-Left on Card → CaptureScreen (Edit Mode).**
+  - In `IndexScreen`, wrap each card with a `SwipeToDismiss` (or custom `Modifier.pointerInput` horizontal drag detector) that detects a leftward swipe exceeding a threshold of `72.dp`.
+  - On confirmed left swipe: navigate to `"capture/${memory.id}"` (edit mode).
+  - Visual feedback during swipe: reveal a tinted edit-icon background behind the card (sentiment colour at `alpha = 0.15f`) that scales in as the card slides left; snap back with spring animation if the threshold is not met.
+  - Swipe-right on the same card: no action (guard against accidental triggers).
