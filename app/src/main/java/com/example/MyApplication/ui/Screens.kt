@@ -1443,21 +1443,11 @@ fun BentoMemoryCard(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Date chip
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.10f),
-                                    RoundedCornerShape(50)
-                                )
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                text = dateLabel,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
+                        Text(
+                            text = dateLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
+                        )
                         // Audio pill (if photo + audio)
                         if (memory.audioFilePath != null && audioDuration != null) {
                             Row(
@@ -1599,20 +1589,11 @@ fun BentoMemoryCard(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.10f),
-                                    RoundedCornerShape(50)
-                                )
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                text = dateLabel,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
+                        Text(
+                            text = dateLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
+                        )
                     }
                 }
             }
@@ -1620,21 +1601,17 @@ fun BentoMemoryCard(
     } else {
         // Text-hero layout (Task 53) — full-bleed gradient, bold headline
         // No sentiment → plain white; HAPPY → subtle pastel yellow; others → tint of emotionColor
-        val hasTone = memory.emotionalTone != null
+        val hasTone = memory.emotionalTone in setOf("HAPPY", "SAD", "ANXIOUS", "CALM", "EXCITED")
         val gradientColors = remember(memory.emotionalTone) {
             when (memory.emotionalTone) {
                 "HAPPY" -> listOf(Color(0xFFFFFDE7), Color(0xFFFFF59D)) // pastel yellow
-                null    -> listOf(Color.White, Color.White)             // no gradient
-                else    -> listOf(emotionColor.copy(alpha = 0.08f), emotionColor.copy(alpha = 0.22f))
+                "SAD", "ANXIOUS", "CALM", "EXCITED" -> listOf(emotionColor.copy(alpha = 0.08f), emotionColor.copy(alpha = 0.22f))
+                else    -> listOf(Color.White, Color.White)             // no gradient
             }
         }
         val gradientBrush = remember(gradientColors) {
             Brush.linearGradient(colors = gradientColors)
         }
-        val chipColor = if (hasTone) emotionColor.copy(alpha = 0.18f)
-                        else Color(0xFFEEEEEE)
-        val chipTextColor = if (hasTone) emotionColor.copy(alpha = 0.85f)
-                            else Color(0xFF757575)
         val source = if (!memory.textContent.isNullOrBlank()) memory.textContent else memory.title
         val (headline, remaining) = remember(source) {
             val idx = source.indexOfFirst { it == '.' || it == '!' || it == '?' || it == '\n' }
@@ -1675,18 +1652,12 @@ fun BentoMemoryCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Box(
-                    modifier = Modifier
-                        .background(chipColor, RoundedCornerShape(50))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = dateLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = chipTextColor
-                    )
-                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = dateLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
+                )
             }
         }
     }
