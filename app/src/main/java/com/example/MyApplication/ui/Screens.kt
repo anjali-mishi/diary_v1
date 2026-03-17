@@ -206,7 +206,7 @@ fun DiaryScreen(
                 columns = GridCells.Fixed(2),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
-                    start = 8.dp, end = 8.dp, top = 84.dp, bottom = (sheetHeight + 40.dp)
+                    start = 20.dp, end = 20.dp, top = 84.dp, bottom = (sheetHeight + 40.dp)
                 ),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -277,14 +277,14 @@ fun DiaryScreen(
             )
         }
 
-        // Soft gradient strip — 30dp tall, sits immediately above the sheet
-        // Fades from transparent at top to a warm orange→pink at the sheet edge
+        // Soft gradient strip — extends from 30dp above the sheet to 30dp inside it,
+        // so it peeks out from behind the sheet's rounded top corners naturally.
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(30.dp)
-                .offset(y = -sheetHeight)
+                .height(60.dp)
+                .offset(y = -(sheetHeight - 30.dp))
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
@@ -1335,7 +1335,7 @@ fun IndexScreen(
                 columns = GridCells.Fixed(2),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
-                    start = 8.dp, end = 8.dp, top = 84.dp, bottom = 40.dp
+                    start = 20.dp, end = 20.dp, top = 84.dp, bottom = 40.dp
                 ),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
