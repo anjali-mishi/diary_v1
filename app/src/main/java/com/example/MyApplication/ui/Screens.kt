@@ -352,7 +352,7 @@ fun MemoryCard(
 
     // Map emotional tone to a soft accent color
     val emotionColor = when (memory.emotionalTone) {
-        "HAPPY"   -> Color(0xFFFFD700)
+        "HAPPY"   -> Color(0xFFC9A84C)
         "SAD"     -> Color(0xFF6B9BD1)
         "ANXIOUS" -> Color(0xFF9B8BC6)
         "CALM"    -> Color(0xFF7FB5A0)
@@ -1383,7 +1383,7 @@ fun BentoMemoryCard(
 ) {
     val isFullSpan = memory.photoFilePath != null || memory.audioFilePath != null
     val emotionColor = when (memory.emotionalTone) {
-        "HAPPY"   -> Color(0xFFFFD700)
+        "HAPPY"   -> Color(0xFFC9A84C)
         "SAD"     -> Color(0xFF6B9BD1)
         "ANXIOUS" -> Color(0xFF9B8BC6)
         "CALM"    -> Color(0xFF7FB5A0)
@@ -1604,7 +1604,7 @@ fun BentoMemoryCard(
         val hasTone = memory.emotionalTone in setOf("HAPPY", "SAD", "ANXIOUS", "CALM", "EXCITED")
         val gradientColors = remember(memory.emotionalTone) {
             when (memory.emotionalTone) {
-                "HAPPY" -> listOf(Color(0xFFFFFDE7), Color(0xFFFFF59D)) // pastel yellow
+                "HAPPY" -> listOf(Color(0xFFF5EDCF), Color(0xFFE8DFA0)) // desaturated pastel yellow
                 "SAD", "ANXIOUS", "CALM", "EXCITED" -> listOf(emotionColor.copy(alpha = 0.08f), emotionColor.copy(alpha = 0.22f))
                 else    -> listOf(Color.White, Color.White)             // no gradient
             }
@@ -1672,7 +1672,7 @@ fun IndexMemoryRow(
     modifier: Modifier = Modifier
 ) {
     val emotionColor = when (memory.emotionalTone) {
-        "HAPPY"   -> Color(0xFFFFD700)
+        "HAPPY"   -> Color(0xFFC9A84C)
         "SAD"     -> Color(0xFF6B9BD1)
         "ANXIOUS" -> Color(0xFF9B8BC6)
         "CALM"    -> Color(0xFF7FB5A0)
