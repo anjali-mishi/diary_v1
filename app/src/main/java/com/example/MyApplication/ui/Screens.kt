@@ -1284,7 +1284,7 @@ fun IndexScreen(
                         Text(
                             text = date,
                             style = MaterialTheme.typography.bodyLarge.copy(
-                                fontFamily = com.example.myapplication.ui.theme.playwriteFamily,
+                                fontFamily = com.example.myapplication.ui.theme.trocchiFamily,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Normal
                             ),
