@@ -1076,7 +1076,13 @@ fun CaptureScreen(
                                             text = suggestion,
                                             style = MaterialTheme.typography.bodySmall
                                         )
-                                    }
+                                    },
+                                    modifier = Modifier.appleShadow(4.dp),
+                                    colors = androidx.compose.material3.SuggestionChipDefaults.suggestionChipColors(
+                                        containerColor = Color.White
+                                    ),
+                                    border = null,
+                                    elevation = androidx.compose.material3.SuggestionChipDefaults.suggestionChipElevation(0.dp)
                                 )
                             }
                         }
@@ -1108,7 +1114,13 @@ fun CaptureScreen(
                                         text = prompt,
                                         style = MaterialTheme.typography.bodySmall
                                     )
-                                }
+                                },
+                                modifier = Modifier.appleShadow(4.dp),
+                                colors = androidx.compose.material3.SuggestionChipDefaults.suggestionChipColors(
+                                    containerColor = Color.White
+                                ),
+                                border = null,
+                                elevation = androidx.compose.material3.SuggestionChipDefaults.suggestionChipElevation(0.dp)
                             )
                         }
                     }

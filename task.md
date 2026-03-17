@@ -209,9 +209,10 @@ This is your roadmap to building the Memory App, designed specifically for you a
   - Placeholder `"I remember..."` `Text` also receives `textAlign = Center` + `fillMaxWidth()` for visual consistency before the user starts typing.
   - No other screens affected.
 
-- [ ] **Task 49: Suggestion & Predictor Chips — White Fill with Soft Shadow.**
-  - Change the quick-starter suggestion chips (Task 37) and inline predictor chips (Task 38) from their current appearance to:
-    - **Background:** solid white (`#FFFFFF`).
-    - **Elevation/Shadow:** low soft shadow matching the app's Apple-style shadow system (low y-offset, low opacity, high blur — e.g., `2dp` elevation equivalent).
-    - **No border/outline** — rely solely on the shadow for depth.
-  - Typography and tap behavior remain unchanged.
+- [x] **Task 49: Suggestion & Predictor Chips — White Fill with Soft Shadow.**
+  - Both starter chips (Task 37) and predictor chips (Task 38) updated:
+    - `containerColor = Color.White` via `SuggestionChipDefaults.suggestionChipColors`.
+    - `border = null` — no outline.
+    - `elevation = SuggestionChipDefaults.suggestionChipElevation(0.dp)` — M3 elevation zeroed.
+    - `Modifier.appleShadow(4.dp)` — Apple-style soft diffuse shadow for depth.
+  - Typography and tap behavior unchanged.
