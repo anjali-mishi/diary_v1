@@ -382,14 +382,10 @@ fun MemoryCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                // Date in Playwrite (journal-style)
+                // Date — secondary body font (sans-serif)
                 Text(
                     text = formattedDate,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontFamily = com.example.myapplication.ui.theme.playwriteFamily,
-                        fontSize = 11.sp,
-                        fontStyle = FontStyle.Normal
-                    ),
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.secondary
                 )
 
