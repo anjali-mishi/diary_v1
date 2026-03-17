@@ -216,3 +216,42 @@ This is your roadmap to building the Memory App, designed specifically for you a
     - `elevation = SuggestionChipDefaults.suggestionChipElevation(0.dp)` — M3 elevation zeroed.
     - `Modifier.appleShadow(4.dp)` — Apple-style soft diffuse shadow for depth.
   - Typography and tap behavior unchanged.
+
+---
+
+## Phase 13: Bento Grid Card Layout
+
+> **Span rules (content-type driven, fixed):**
+> - Media card (has photo) → **2-col full-width** span
+> - Audio card (has audio, no photo) → **2-col full-width** span
+> - Text-only card → **1-col** span (half-width, square)
+
+- [ ] **Task 50: Bento Grid Infrastructure — Variable Spans by Content Type.**
+  - Replace the current list/grid layout in `IndexScreen` with a 2-column bento grid.
+  - Use `LazyVerticalStaggeredGrid` (Compose) or a custom `LazyVerticalGrid` with `GridItemSpan` logic.
+  - Span calculation: inspect each `MemoryEntity` — if `photoUri != null` → span 2; if `audioUri != null && photoUri == null` → span 2; text-only → span 1.
+  - Grid gutters: `8.dp` horizontal, `8.dp` vertical, consistent with existing card padding.
+  - Cards retain their existing `appleShadow`, corner radius, and white fill — only their grid slot changes.
+  - No changes to `CaptureScreen` or data layer.
+
+- [ ] **Task 51: Media-First Card Layout — Photo on Top, Content Below.**
+  - For cards where `photoUri != null`:
+    - Top section: `AsyncImage` (Coil) fills the full card width at a fixed height of `180.dp`, `contentScale = Crop`, clipped to the card's top corners.
+    - Bottom section: memory text (capped at 2 lines, ellipsized), date chip, and emotion tag sit below the image in a `Column` with `16.dp` padding.
+  - If both photo and audio exist, photo takes the top slot; a small inline audio pill (mic icon + duration) appears inside the bottom content section.
+  - No layout changes to text-only or audio-only cards in this task.
+
+- [ ] **Task 52: Audio-First Card Layout — Album-Art Block on Top, Content Below.**
+  - For cards where `audioUri != null && photoUri == null`:
+    - Top section: a solid colour block, `height = 120.dp`, full card width, using the memory's emotional tone colour (from `EmotionTone` palette). Centred inside: a circular white play/pause `IconButton` (`48.dp`) + audio duration label beneath it in `Caption` style.
+    - Bottom section: memory text (capped at 2 lines), date chip, and emotion tag — same structure as Task 51's bottom section.
+  - Tapping the play button triggers audio playback inline (reuse existing audio player logic); tapping anywhere else on the card opens the memory.
+  - The colour block uses the same `EmotionTone` → `Color` mapping already established in the design system.
+
+- [ ] **Task 53: Text-Hero Card Layout — Full-Bleed Gradient with Bold Headline.**
+  - For cards where `photoUri == null && audioUri == null`:
+    - Card background: full-bleed `Brush.linearGradient` using the memory's emotional tone colour (light→slightly-darker tint, 2-stop), replacing the plain white fill.
+    - First sentence/line of the memory text is extracted and rendered as a **headline** (`TitleMedium` or `HeadlineSmall`, bold, max 2 lines) at the top of the card.
+    - Remaining text, if any, renders below in `BodySmall` (max 3 lines, ellipsized).
+    - Date chip and emotion tag sit at the bottom of the card, tinted to contrast against the gradient (use `onSurface` or a darkened tone colour).
+    - Card retains `appleShadow` and `1-col` square span from Task 50.
