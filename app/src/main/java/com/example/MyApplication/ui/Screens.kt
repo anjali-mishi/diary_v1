@@ -1667,16 +1667,22 @@ fun BentoMemoryCard(
         }
     } else {
         // Text-hero layout (Task 53) — full-bleed gradient, bold headline
-        val gradientBrush = remember(emotionColor) {
-            Brush.linearGradient(
-                colors = listOf(
-                    emotionColor.copy(alpha = 0.08f),
-                    emotionColor.copy(alpha = 0.22f)
-                )
-            )
+        // No sentiment → plain white; HAPPY → subtle pastel yellow; others → tint of emotionColor
+        val hasTone = memory.emotionalTone != null
+        val gradientColors = remember(memory.emotionalTone) {
+            when (memory.emotionalTone) {
+                "HAPPY" -> listOf(Color(0xFFFFFDE7), Color(0xFFFFF59D)) // pastel yellow
+                null    -> listOf(Color.White, Color.White)             // no gradient
+                else    -> listOf(emotionColor.copy(alpha = 0.08f), emotionColor.copy(alpha = 0.22f))
+            }
         }
-        val chipColor = emotionColor.copy(alpha = 0.18f)
-        val chipTextColor = emotionColor.copy(alpha = 0.85f)
+        val gradientBrush = remember(gradientColors) {
+            Brush.linearGradient(colors = gradientColors)
+        }
+        val chipColor = if (hasTone) emotionColor.copy(alpha = 0.18f)
+                        else Color(0xFFEEEEEE)
+        val chipTextColor = if (hasTone) emotionColor.copy(alpha = 0.85f)
+                            else Color(0xFF757575)
         val source = if (!memory.textContent.isNullOrBlank()) memory.textContent else memory.title
         val (headline, remaining) = remember(source) {
             val idx = source.indexOfFirst { it == '.' || it == '!' || it == '?' || it == '\n' }
