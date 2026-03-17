@@ -221,10 +221,45 @@ This is your roadmap to building the Memory App, designed specifically for you a
 
 ## Phase 13: Bento Grid Card Layout
 
-> **Span rules (content-type driven, fixed):**
-> - Media card (has photo) → **2-col full-width** span
-> - Audio card (has audio, no photo) → **2-col full-width** span
-> - Text-only card → **1-col** span (half-width, square)
+### Grid Definition
+
+```
+Screen width = full bleed (e.g. 390dp on a standard device)
+Columns      = 2
+Column width = (screenWidth - horizontalPadding - gutter) / 2
+               e.g. (390 - 16 - 8) / 2 ≈ 183dp per column
+Gutter       = 8dp (between columns and between rows)
+Outer margin = 8dp left + 8dp right
+
+Span types:
+  full  = 2 columns wide  (≈ 366dp)
+  half  = 1 column wide   (≈ 183dp, square aspect ratio)
+```
+
+**Card type → span mapping (fixed, content-type driven):**
+
+| Content type              | Condition                             | Span   | Approx size        |
+|---------------------------|---------------------------------------|--------|--------------------|
+| Media card                | `photoUri != null`                    | full   | 366 × auto dp      |
+| Audio card                | `audioUri != null && photoUri == null`| full   | 366 × auto dp      |
+| Text-only card            | no photo, no audio                    | half   | 183 × 183 dp       |
+
+**Internal stacking order (all card types):**
+
+```
+┌─────────────────────────┐  ← full-span card
+│  MEDIA or AUDIO BLOCK   │  top: photo (180dp) or colour block (120dp)
+├─────────────────────────┤
+│  text  •  date  •  tag  │  bottom: content row (16dp padding)
+└─────────────────────────┘
+
+┌───────────┐              ← half-span card (text-only)
+│ gradient  │
+│ HEADLINE  │  bold first line
+│ body…     │  remaining text
+│ date • tag│
+└───────────┘
+```
 
 - [ ] **Task 50: Bento Grid Infrastructure — Variable Spans by Content Type.**
   - Replace the current list/grid layout in `IndexScreen` with a 2-column bento grid.
