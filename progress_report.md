@@ -58,18 +58,26 @@ We have successfully completed **Phases 1 through 9**, fully realizing the funct
 
 ---
 
+### 🎨 Visual Polish & Branding (Phase 12 — Tasks 44–48)
+
+*   **Bottom Sheet Placeholder (Task 44):** Placeholder text "What's on your mind?" is left-aligned (text-start) and vertically centred within the sheet using `Box(contentAlignment = Alignment.CenterStart)`. Rounded top corners were already in place.
+*   **Brand Gradient App-Wide (Task 45):** `#FF9966 → #FF6699` horizontal gradient is now the fill for all primary interactive surfaces. Applied to the "Save memory" button and Mic/Photo FABs via `Modifier.background(Brush.horizontalGradient(...))` with `containerColor = Transparent` and white icons. Gradient strip and waveform bars already matched — confirmed.
+*   **Memory Card Date Font (Task 46):** Card timestamps now render in `MaterialTheme.typography.bodySmall` (SF Pro Rounded) instead of Trocchi/Playwrite.
+*   **Trocchi Font (Task 47):** `trocchi_regular.ttf` (OFL, Google Fonts) bundled in `res/font/`. `playwriteFamily` fully removed; `trocchiFamily` now covers all display/headline/titleLarge tokens in `Type.kt`. Inline reference in `IndexScreen` date headers also updated.
+*   **Center-Aligned Entry Text (Task 48):** `BasicTextField` in `CaptureScreen` uses `textAlign = TextAlign.Center` in its `textStyle`. Placeholder `"I remember..."` matches. No other screens affected.
+
+---
+
 ## 3. The Path Forward (Current Objective)
 
-We are entering **Phase 12: Visual Polish & Branding**. The core recording and playback pipeline is complete. Focus now shifts to typographic identity, color system refinement, and UI consistency.
+**Phase 12 is complete.** All planned visual polish and branding tasks (44–48) have shipped. We are now preparing to scale the app into its next phase.
 
-### Upcoming Tasks:
-*   **Task 44 — Bottom Sheet Polish:** Center the placeholder text and add rounded top corners to the persistent bottom sheet.
-*   **Task 45 — Brand Gradient as Primary Color:** Propagate the `#FF9966 → #FF6699` gradient to the "Save memory" button, FABs, and all interactive elements app-wide.
-*   **Task 46 — Memory Card Date Font:** Remove Playwrite from card timestamps; use the secondary body font.
-*   **Task 47 — Replace Playwrite with Trocchi:** Swap the primary display font from Playwrite Österreich to Trocchi across the whole app.
-*   **Task 48 — Center-Aligned Entry Text:** Center the main text input in `CaptureScreen`.
-*   **Task 49 — White Chip Style:** Give suggestion and predictor chips a solid white background with soft shadow.
+### Remaining Phase 12 task:
+*   **Task 49 — White Chip Style:** Give suggestion and predictor chips a solid white (`#FFFFFF`) background with a low Apple-style soft shadow. No border/outline.
+
+### Next Phase — Scaling:
+The core capture/playback pipeline, brand identity (Trocchi + orange→pink gradient), and UX polish are all solid. The next phase will focus on expanding the app's feature surface — search, filtering, richer memory views, and deeper emotional context.
 
 > [!TIP]
 > **Developer Goal**
-> Phase 12 tasks are all purely visual — no data model or navigation changes. Each can be validated independently on the emulator.
+> Task 49 is purely visual. All subsequent scaling work will involve new screens and data features — plan those in a new phase block in `task.md`.

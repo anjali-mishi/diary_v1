@@ -34,10 +34,11 @@ Executing the specific soft, journal-like aesthetics defined in `design.md` requ
 
 * **Absolute Theme Enforcement:**
   * Android 12+ forces "Dynamic Colors" based on the user's wallpaper. We intentionally disabled `dynamicColor` inside `Theme.kt` to lock the palette to our custom `#FDF9F1` Warm Paper aesthetic across all devices.
-  * Mapped all 15 M3 typography tokens explicitly to Custom Fonts (SF Pro and Playwrite) to prevent the system from substituting Roboto into unmapped elements like Dialog text or secondary labels.
-* **Font Sourcing constraints:** 
-  * *Issue:* Google Fonts 'Playwrite' repository structure caused HTML files to download instead of raw TTF binaries, breaking Jetpack Compose's font loader. 
-  * *Resolution:* Swapped Playwrite for **Indie Flower** (another verified Google Font with an organic, journal cursive aesthetic) via direct binary download to restore the visual design without blocking development.
+  * Mapped all 15 M3 typography tokens explicitly to Custom Fonts (SF Pro Rounded and Trocchi) to prevent the system from substituting Roboto into unmapped elements like Dialog text or secondary labels.
+* **Font Sourcing — evolution:**
+  * *Original issue:* Google Fonts 'Playwrite' repository structure caused HTML files to download instead of raw TTF binaries, breaking Jetpack Compose's font loader.
+  * *Interim resolution:* Swapped to **Indie Flower**, then later to **Playwrite Österreich** (bundled as `res/font/playwrite_osterreich.ttf`).
+  * *Final resolution (Task 47):* Replaced Playwrite Österreich with **Trocchi** (OFL licensed, sourced from `github.com/google/fonts` raw binary). `trocchiFamily` is now the single primary display font across all display/headline/titleLarge tokens.
 * **Apple-Style Soft Shadows:** 
   * Standard Material 3 `FloatingActionButtonDefaults.elevation()` yields harsh, distinctly "Android" dropshadows. 
   * Set all Material elevations to `0.dp`. Developed a custom, reusable `.appleShadow()` Compose Modifier using the underlying `Canvas.drawRoundRect` and `Paint.setShadowLayer` APIs to accurately replicate the wide, highly-blurred, low-opacity (7% alpha) dropshadows prescribed by the design spec.
@@ -105,6 +106,22 @@ Executing the specific soft, journal-like aesthetics defined in `design.md` requ
 
 * **Pause icon — explicit import required (Task 43):**
   * `Icons.Default.Pause` does not resolve without an explicit `import androidx.compose.material.icons.filled.Pause`, even though `material-icons-extended` is on the classpath. Added the import alongside the existing `PlayArrow` and `Close` imports.
+
+## Phase 12: Visual Polish & Branding (Tasks 44–48)
+
+* **Bottom Sheet Placeholder Alignment (Task 44):**
+  * Final state: text is **left-aligned** (text-start) and **vertically centred** within the sheet. Implemented as a `Box(contentAlignment = Alignment.CenterStart)` taking `weight(1f) + fillMaxHeight()`, replacing the earlier `Text` with `fillMaxHeight()` that pushed content to the top.
+
+* **Brand Gradient as Primary Interactive Color (Task 45):**
+  * Canonical gradient `#FF9966 → #FF6699` (horizontal) is now the fill for all primary interactive surfaces: "Save memory" button and Mic/Photo FABs.
+  * Technique: set `containerColor = Color.Transparent` on M3 `Button` / `FloatingActionButton` and apply `Modifier.background(Brush.horizontalGradient(...), shape)` — the gradient shows through the transparent container. Icon color set to `Color.White` for legibility.
+  * Gradient strip (Task 35) and waveform bars (Tasks 39/41) already matched `#FF9966/#FF6699` — confirmed, no change needed.
+
+* **Trocchi Font Replacement (Task 47):**
+  * See "Font Sourcing" above. `playwriteFamily` identifier fully removed from the codebase; replaced with `trocchiFamily` everywhere in `Type.kt` and `Screens.kt`.
+
+* **Center-Aligned Entry Text (Task 48):**
+  * `BasicTextField` in `CaptureScreen` now uses `textStyle.copy(textAlign = TextAlign.Center)`. The placeholder `"I remember..."` `Text` receives the same `textAlign` + `fillMaxWidth()` so it stays visually centred before typing begins. No other screens affected.
 
 ## Observability / Debugging
 

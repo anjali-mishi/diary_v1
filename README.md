@@ -18,9 +18,9 @@
 - **Language:** Kotlin
 - **UI Framework:** Jetpack Compose (Modern, declarative UI)
 - **Database:** Room (SQLite) for high-performance local metadata storage
-- **Architecture:** MVVM (Model-View-ViewModel) with Clean Architecture principles
-- **Dependency Injection:** Hilt
-- **Media:** MediaRecorder API for audio & CameraX/Gallery integration for photos
+- **Architecture:** MVVM (Model-View-ViewModel) — ViewModels instantiated via custom `ViewModelProvider.Factory` with a shared `AppDatabase` singleton (no Hilt for MVP)
+- **Media:** MediaRecorder API for audio & Photo Picker for gallery integration
+- **Typography:** Trocchi (titles/display, OFL via Google Fonts) + SF Pro Rounded (body/UI)
 
 ---
 
@@ -51,6 +51,12 @@ We live in an age where we have thousands of photos, but the stories behind them
 - [x] Multimedia entry support (Text/Photo/Audio)
 - [x] Emotional tone auto-detection
 - [x] Chronological Index view
+- [x] Persistent bottom sheet capture entry point
+- [x] Spotify-style full-screen audio recording with animated waveform
+- [x] Waveform data persistence & playback with animated playhead
+- [x] Brand gradient system (`#FF9966 → #FF6699`) across all interactive surfaces
+- [x] Trocchi typography + SF Pro Rounded body font
+- [ ] Suggestion & predictor chip visual polish (Task 49)
 - [ ] Memory search & filtering by emotion
 - [ ] "On this day" memory resurfacing
 - [ ] Encrypted local backups
