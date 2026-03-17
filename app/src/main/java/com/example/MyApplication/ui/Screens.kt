@@ -27,6 +27,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -1286,16 +1292,18 @@ fun IndexScreen(
                 )
             }
         } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp),
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 8.dp, end = 8.dp, top = 84.dp, bottom = 40.dp
+                ),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                item { Spacer(modifier = Modifier.height(76.dp)) } // header clearance
-
                 grouped.forEach { (date, memoriesOnDate) ->
-                    // Date header
-                    item {
+                    // Date header — full width
+                    item(span = { GridItemSpan(maxLineSpan) }) {
                         Text(
                             text = date,
                             style = MaterialTheme.typography.bodyLarge.copy(
@@ -1306,30 +1314,36 @@ fun IndexScreen(
                             color = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 24.dp, bottom = 8.dp)
+                                .padding(top = 16.dp, bottom = 4.dp)
                         )
                     }
 
-                    // Memories under this date
-                    items(memoriesOnDate) { memory ->
-                        IndexMemoryRow(
+                    // Bento cards: media/audio → span 2, text-only → span 1
+                    gridItems(
+                        items = memoriesOnDate,
+                        span = { memory ->
+                            val spanCount =
+                                if (memory.photoFilePath != null || memory.audioFilePath != null) 2
+                                else 1
+                            GridItemSpan(spanCount)
+                        }
+                    ) { memory ->
+                        BentoMemoryCard(
                             memory = memory,
                             onClick = { onNavigateToEdit(memory.id) },
                             onLongClick = { memoryToEditOrDelete = memory }
                         )
                     }
 
-                    // Thin divider between date groups
-                    item {
+                    // Thin divider — full width
+                    item(span = { GridItemSpan(maxLineSpan) }) {
                         HorizontalDivider(
-                            modifier = Modifier.padding(top = 8.dp),
+                            modifier = Modifier.padding(top = 4.dp),
                             color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
                             thickness = 0.5.dp
                         )
                     }
                 }
-
-                item { Spacer(modifier = Modifier.height(40.dp)) }
             }
         }
 
@@ -1355,6 +1369,83 @@ fun IndexScreen(
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground
             )
+        }
+    }
+}
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun BentoMemoryCard(
+    memory: Memory,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isFullSpan = memory.photoFilePath != null || memory.audioFilePath != null
+    val emotionColor = when (memory.emotionalTone) {
+        "HAPPY"   -> Color(0xFFFFD700)
+        "SAD"     -> Color(0xFF6B9BD1)
+        "ANXIOUS" -> Color(0xFF9B8BC6)
+        "CALM"    -> Color(0xFF7FB5A0)
+        "EXCITED" -> Color(0xFFFF9F66)
+        else      -> Color(0xFFD4C5B9)
+    }
+
+    Box(
+        modifier = (if (isFullSpan) modifier else modifier.aspectRatio(1f))
+            .appleShadow(cornerRadius = 16.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(16.dp)
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(emotionColor, CircleShape)
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                if (memory.audioFilePath != null) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+                if (memory.photoFilePath != null) {
+                    if (memory.audioFilePath != null) Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = memory.title,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (!memory.textContent.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = memory.textContent,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                    maxLines = if (isFullSpan) 3 else 4,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

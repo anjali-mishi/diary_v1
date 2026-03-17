@@ -261,7 +261,7 @@ Span types:
 └───────────┘
 ```
 
-- [ ] **Task 50: Bento Grid Infrastructure — Variable Spans by Content Type.**
+- [x] **Task 50: Bento Grid Infrastructure — Variable Spans by Content Type.**
   - Replace the current list/grid layout in `IndexScreen` with a 2-column bento grid.
   - Use `LazyVerticalStaggeredGrid` (Compose) or a custom `LazyVerticalGrid` with `GridItemSpan` logic.
   - Span calculation: inspect each `MemoryEntity` — if `photoUri != null` → span 2; if `audioUri != null && photoUri == null` → span 2; text-only → span 1.
