@@ -1666,43 +1666,89 @@ fun BentoMemoryCard(
             }
         }
     } else {
-        // Text-only cards — unchanged layout
+        // Text-hero layout (Task 53) — full-bleed gradient, bold headline
+        val gradientBrush = remember(emotionColor) {
+            Brush.linearGradient(
+                colors = listOf(
+                    emotionColor.copy(alpha = 0.08f),
+                    emotionColor.copy(alpha = 0.22f)
+                )
+            )
+        }
+        val chipColor = emotionColor.copy(alpha = 0.18f)
+        val chipTextColor = emotionColor.copy(alpha = 0.85f)
+        val source = if (!memory.textContent.isNullOrBlank()) memory.textContent else memory.title
+        val (headline, remaining) = remember(source) {
+            val idx = source.indexOfFirst { it == '.' || it == '!' || it == '?' || it == '\n' }
+            if (idx in 1 until source.length) {
+                source.substring(0, idx + 1).trim() to source.substring(idx + 1).trim()
+            } else {
+                source.trim() to ""
+            }
+        }
         Box(
             modifier = modifier.aspectRatio(1f)
                 .appleShadow(cornerRadius = 16.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color.White)
+                .background(gradientBrush)
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 .padding(16.dp)
         ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(emotionColor, CircleShape)
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = memory.title,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (!memory.textContent.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
                     Text(
-                        text = memory.textContent,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.secondary,
-                        maxLines = 4,
+                        text = headline,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (remaining.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = remaining,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .background(chipColor, RoundedCornerShape(50))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = dateLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = chipTextColor
+                        )
+                    }
+                    if (memory.emotionalTone != null) {
+                        Box(
+                            modifier = Modifier
+                                .background(chipColor, RoundedCornerShape(50))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = memory.emotionalTone.lowercase()
+                                    .replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = chipTextColor
+                            )
+                        }
+                    }
                 }
             }
         }
