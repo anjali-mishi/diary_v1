@@ -195,21 +195,59 @@ fun DiaryScreen(
         }
 
         if (memories.isNotEmpty()) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+            val dateFormatter = remember { SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault()) }
+            val grouped = remember(memories) {
+                memories
+                    .sortedByDescending { it.timestamp }
+                    .groupBy { dateFormatter.format(Date(it.timestamp)) }
+            }
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 8.dp, end = 8.dp, top = 84.dp, bottom = (sheetHeight + 40.dp)
+                ),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                item { Spacer(modifier = Modifier.height(80.dp)) }
-                items(memories) { memory ->
-                    MemoryCard(
-                        memory = memory,
-                        onClick = { onNavigateToEdit(memory.id) },
-                        onLongClick = { memoryToEditOrDelete = memory }
-                    )
+                grouped.forEach { (date, memoriesOnDate) ->
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Text(
+                            text = date,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontFamily = com.example.myapplication.ui.theme.trocchiFamily,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal
+                            ),
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp, bottom = 4.dp)
+                        )
+                    }
+                    gridItems(
+                        items = memoriesOnDate,
+                        span = { memory ->
+                            val spanCount =
+                                if (memory.photoFilePath != null || memory.audioFilePath != null) 2
+                                else 1
+                            GridItemSpan(spanCount)
+                        }
+                    ) { memory ->
+                        BentoMemoryCard(
+                            memory = memory,
+                            onClick = { onNavigateToEdit(memory.id) },
+                            onLongClick = { memoryToEditOrDelete = memory }
+                        )
+                    }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(top = 4.dp),
+                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
+                            thickness = 0.5.dp
+                        )
+                    }
                 }
-                item { Spacer(modifier = Modifier.height(200.dp)) } // Bottom clearance for sheet
             }
         }
 
