@@ -139,20 +139,20 @@ data class CollectionMemoryCrossRef(
 - Trigger: 2 seconds after a new memory is saved, a bottom sheet slides up
 - Content: one quote (text + author/source) + a "save" button (saves to a `quotes_saved` local list)
 - Quote selection:
-  - **v1:** Curated local JSON — ~30 quotes per emotion tone, hand-picked (no API needed)
-  - **v2:** Claude API — "Given this diary entry, suggest a short quote (under 30 words) from literature or film that would make this person feel less alone. Don't be preachy."
+  - **Local JSON:** ~30 famous, inclusive quotes per emotion tone sourced from Goodreads top quotes and world-renowned authors (Rumi, Maya Angelou, Tolkien, Murakami, Toni Morrison, Tagore, Paulo Coelho, etc.)
+  - **Claude API fallback:** If the local pool feels repetitive after a few months, the API generates a fresh quote contextual to the specific entry
 - The quote never appears if the emotion is NEUTRAL
 
-**Local JSON structure (v1):**
+**Local JSON structure:**
 ```json
 {
-  "HAPPY": [{ "text": "...", "source": "Big Fish" }, ...],
-  "SAD": [{ "text": "...", "source": "Anne of Green Gables" }, ...],
+  "HAPPY": [{ "text": "...", "source": "Rumi" }, ...],
+  "SAD": [{ "text": "...", "source": "Haruki Murakami, Norwegian Wood" }, ...],
   ...
 }
 ```
 
-**Recommendation:** Start with local quotes — zero latency, works offline, and you can curate the exact vibe. The AI version is a Phase D upgrade. Avoid motivational-poster energy; pick literary, cinematic, genuine quotes.
+**Recommendation:** The local JSON is still the primary source — zero latency, works offline, and the famous quotes carry cultural weight ("oh I know this one"). Avoid motivational-poster energy; pick literary, cinematic, genuine quotes that are universally known and inclusive. Claude API can auto-generate this JSON during development — no manual curation needed.
 
 ---
 
@@ -220,14 +220,13 @@ val isRevealed: Boolean = false
 
 **How it works:**
 - Trigger: optional — user taps a music note icon on a saved memory card
-- Song suggestion:
-  - **v1:** Local curated map — 3–5 Spotify track URIs per emotion tone (e.g. `spotify:track:...`)
-  - **v2:** Claude API — "This person just wrote a diary entry with this mood. Suggest one song title + artist that would fit. Respond in JSON only."
-  - User can also set a language preference in Settings (English / Hindi / Tamil / other) — song suggestions filtered accordingly
-- Tap → `Intent(Intent.ACTION_VIEW, Uri.parse("spotify:track:..."))` → opens Spotify
+- Song suggestion: Claude API call — "Given this diary entry's mood and the user's preferred language, suggest one song (title + artist) that fits emotionally. Return as JSON: {title, artist, spotifySearchQuery}."
+- User sets language preference in Settings (English / Hindi / Tamil / other)
+- App searches Spotify using the returned query: `Intent(Intent.ACTION_VIEW, Uri.parse("https://open.spotify.com/search/${query}"))` → opens Spotify search
 - Fallback: if Spotify not installed, open the web URL instead
+- No local curation needed — the API handles all suggestion logic
 
-**Recommendation:** For v1, hand-curate ~5 songs per mood per language. Quality over quantity. Consider: the user's preferred language affects not just lyrics but cultural resonance. A Tamil Carnatic piece for a calm memory hits differently than an English lo-fi track. This can be a genuinely distinctive feature if the curation is good.
+**Recommendation:** The API approach is better here — it adapts to any language, any mood nuance, and doesn't require maintaining a track list. The user's preferred language affects not just lyrics but cultural resonance. A Tamil Carnatic piece for a calm memory hits differently than an English lo-fi track.
 
 ---
 
@@ -297,10 +296,10 @@ Room migration will be required from version 1 → 2. Use `Migration(1, 2)` — 
 
 ---
 
-## Open Questions (decide before building)
+## Decisions (resolved)
 
-1. **Quote curation:** Who curates the local JSON quote library? If it's you, set aside ~2 hours to pick 30 quotes × 5 emotions = 150 quotes. This is high-leverage work.
-2. **Spotify curation:** Same — hand-curate track URIs per mood × language. How many languages to support at launch?
-3. **Horse drawing:** Is the horse a personal/cultural symbol or just whimsical? Worth knowing — it changes how to style it.
-4. **AI API key management:** Claude API key — hardcoded for now (dev only), or will this ship to users? If shipping, need a backend proxy or user-provided key to avoid key exposure.
-5. **Collection minimum size:** 3 memories per diary feels right but worth validating — do you want solo memories (e.g. one very meaningful day) to also get a cover?
+1. **Quote curation:** Source from Goodreads top quotes, famous authors, universally inclusive. Claude API scrapes/generates the best-known quotes per emotion — no manual curation needed. Aim for timeless, widely-loved quotes (Rumi, Maya Angelou, Tolkien, Murakami, etc.).
+2. **Spotify curation:** Skipped entirely. Feature 9 (song sync) uses Claude API to suggest a song on-the-fly — no hand-curated track list needed.
+3. **Horse drawing:** Minimal line-drawing style. Stroke-by-stroke path animation, clean and simple — think single-weight pen illustration, not detailed.
+4. **AI API key management:** Dev-only build for now. API key can be hardcoded in BuildConfig or local.properties. If shipping later, will need a backend proxy.
+5. **Collection minimum:** Yes — solo memories (one very meaningful day) can also get their own cover/collection.
