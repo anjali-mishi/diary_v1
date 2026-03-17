@@ -31,8 +31,14 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
+import androidx.compose.foundation.lazy.staggeredgrid.items as staggeredItems
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.heightIn
+import kotlin.random.Random
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -196,58 +202,22 @@ fun DiaryScreen(
         }
 
         if (memories.isNotEmpty()) {
-            val dateFormatter = remember { SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault()) }
-            val grouped = remember(memories) {
-                memories
-                    .sortedByDescending { it.timestamp }
-                    .groupBy { dateFormatter.format(Date(it.timestamp)) }
-            }
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+            val sorted = remember(memories) { memories.sortedByDescending { it.timestamp } }
+            LazyVerticalStaggeredGrid(
+                columns = StaggeredGridCells.Fixed(2),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     start = 20.dp, end = 20.dp, top = 84.dp, bottom = (sheetHeight + 40.dp)
                 ),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalItemSpacing = 8.dp,
             ) {
-                grouped.forEach { (date, memoriesOnDate) ->
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        Text(
-                            text = date,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontFamily = com.example.myapplication.ui.theme.trocchiFamily,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Normal
-                            ),
-                            color = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 16.dp, bottom = 4.dp)
-                        )
-                    }
-                    gridItems(
-                        items = memoriesOnDate,
-                        span = { memory ->
-                            val spanCount =
-                                if (memory.photoFilePath != null || memory.audioFilePath != null) 2
-                                else 1
-                            GridItemSpan(spanCount)
-                        }
-                    ) { memory ->
-                        BentoMemoryCard(
-                            memory = memory,
-                            onClick = { onNavigateToEdit(memory.id) },
-                            onLongClick = { memoryToEditOrDelete = memory }
-                        )
-                    }
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(top = 4.dp),
-                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
-                            thickness = 0.5.dp
-                        )
-                    }
+                staggeredItems(sorted) { memory ->
+                    BentoMemoryCard(
+                        memory = memory,
+                        onClick = { onNavigateToEdit(memory.id) },
+                        onLongClick = { memoryToEditOrDelete = memory }
+                    )
                 }
             }
         }
@@ -1331,18 +1301,18 @@ fun IndexScreen(
                 )
             }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+            LazyVerticalStaggeredGrid(
+                columns = StaggeredGridCells.Fixed(2),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     start = 20.dp, end = 20.dp, top = 84.dp, bottom = 40.dp
                 ),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalItemSpacing = 8.dp,
             ) {
                 grouped.forEach { (date, memoriesOnDate) ->
                     // Date header — full width
-                    item(span = { GridItemSpan(maxLineSpan) }) {
+                    item(span = StaggeredGridItemSpan.FullLine) {
                         Text(
                             text = date,
                             style = MaterialTheme.typography.bodyLarge.copy(
@@ -1357,16 +1327,7 @@ fun IndexScreen(
                         )
                     }
 
-                    // Bento cards: media/audio → span 2, text-only → span 1
-                    gridItems(
-                        items = memoriesOnDate,
-                        span = { memory ->
-                            val spanCount =
-                                if (memory.photoFilePath != null || memory.audioFilePath != null) 2
-                                else 1
-                            GridItemSpan(spanCount)
-                        }
-                    ) { memory ->
+                    staggeredItems(memoriesOnDate) { memory ->
                         BentoMemoryCard(
                             memory = memory,
                             onClick = { onNavigateToEdit(memory.id) },
@@ -1375,7 +1336,7 @@ fun IndexScreen(
                     }
 
                     // Thin divider — full width
-                    item(span = { GridItemSpan(maxLineSpan) }) {
+                    item(span = StaggeredGridItemSpan.FullLine) {
                         HorizontalDivider(
                             modifier = Modifier.padding(top = 4.dp),
                             color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
@@ -1497,24 +1458,6 @@ fun BentoMemoryCard(
                                 color = MaterialTheme.colorScheme.secondary
                             )
                         }
-                        // Emotion tag
-                        if (memory.emotionalTone != null) {
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        emotionColor.copy(alpha = 0.15f),
-                                        RoundedCornerShape(50)
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Text(
-                                    text = memory.emotionalTone.lowercase()
-                                        .replaceFirstChar { it.uppercase() },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = emotionColor.copy(alpha = 0.85f)
-                                )
-                            }
-                        }
                         // Audio pill (if photo + audio)
                         if (memory.audioFilePath != null && audioDuration != null) {
                             Row(
@@ -1571,47 +1514,73 @@ fun BentoMemoryCard(
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
         ) {
             Column {
-                // Top: solid tone-colour block with play/pause button
+                // Top: waveform visualisation with overlaid play/pause
+                val waveBarCount = 30
+                val waveBarHeights = remember(memory.audioFilePath) {
+                    val rng = Random(memory.audioFilePath.hashCode())
+                    List(waveBarCount) { 0.15f + 0.85f * rng.nextFloat() }
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp)
-                        .background(emotionColor.copy(alpha = 0.85f)),
-                    contentAlignment = Alignment.Center
+                        .height(110.dp)
+                        .background(emotionColor.copy(alpha = 0.85f))
+                        .clickable {
+                            if (isPlaying) {
+                                audioPlayer.stop()
+                                isPlaying = false
+                            } else {
+                                audioPlayer.playFile(memory.audioFilePath) {
+                                    isPlaying = false
+                                }
+                                isPlaying = true
+                            }
+                        }
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp, vertical = 14.dp)
+                    ) {
+                        val totalBars = waveBarCount
+                        val barW = size.width / (totalBars * 1.6f)
+                        val gap = barW * 0.6f
+                        waveBarHeights.forEachIndexed { i, frac ->
+                            val barH = frac * size.height
+                            val x = i * (barW + gap)
+                            val y = (size.height - barH) / 2f
+                            drawRoundRect(
+                                color = Color.White.copy(alpha = 0.75f),
+                                topLeft = Offset(x, y),
+                                size = Size(barW, barH),
+                                cornerRadius = CornerRadius(barW / 2f)
+                            )
+                        }
+                    }
+                    // Play/pause button centred over waveform
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(38.dp)
+                            .background(Color.White.copy(alpha = 0.22f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    if (audioDuration != null) {
+                        Text(
+                            text = audioDuration,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.85f),
                             modifier = Modifier
-                                .size(48.dp)
-                                .background(Color.White, CircleShape)
-                                .clickable {
-                                    if (isPlaying) {
-                                        audioPlayer.stop()
-                                        isPlaying = false
-                                    } else {
-                                        audioPlayer.playFile(memory.audioFilePath) {
-                                            isPlaying = false
-                                        }
-                                        isPlaying = true
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = emotionColor,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                        if (audioDuration != null) {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = audioDuration,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                        }
+                                .align(Alignment.BottomEnd)
+                                .padding(8.dp)
+                        )
                     }
                 }
                 // Bottom: text + chips (same structure as Task 51)
@@ -1643,23 +1612,6 @@ fun BentoMemoryCard(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.secondary
                             )
-                        }
-                        if (memory.emotionalTone != null) {
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        emotionColor.copy(alpha = 0.15f),
-                                        RoundedCornerShape(50)
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Text(
-                                    text = memory.emotionalTone.lowercase()
-                                        .replaceFirstChar { it.uppercase() },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = emotionColor.copy(alpha = 0.85f)
-                                )
-                            }
                         }
                     }
                 }
@@ -1693,7 +1645,9 @@ fun BentoMemoryCard(
             }
         }
         Box(
-            modifier = modifier.aspectRatio(1f)
+            modifier = modifier
+                .fillMaxWidth()
+                .heightIn(min = 110.dp)
                 .appleShadow(cornerRadius = 16.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color.White)
@@ -1701,60 +1655,37 @@ fun BentoMemoryCard(
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 .padding(16.dp)
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = headline,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (remaining.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = headline,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = MaterialTheme.colorScheme.onBackground,
-                        maxLines = 2,
+                        text = remaining,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
-                    if (remaining.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = remaining,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
                 }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .background(chipColor, RoundedCornerShape(50))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .background(chipColor, RoundedCornerShape(50))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = dateLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = chipTextColor
-                        )
-                    }
-                    if (memory.emotionalTone != null) {
-                        Box(
-                            modifier = Modifier
-                                .background(chipColor, RoundedCornerShape(50))
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                text = memory.emotionalTone.lowercase()
-                                    .replaceFirstChar { it.uppercase() },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = chipTextColor
-                            )
-                        }
-                    }
+                    Text(
+                        text = dateLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = chipTextColor
+                    )
                 }
             }
         }
