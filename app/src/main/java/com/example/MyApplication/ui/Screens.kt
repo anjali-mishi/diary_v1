@@ -1428,61 +1428,169 @@ fun BentoMemoryCard(
         "EXCITED" -> Color(0xFFFF9F66)
         else      -> Color(0xFFD4C5B9)
     }
+    val dateLabel = remember(memory.timestamp) {
+        SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(memory.timestamp))
+    }
 
-    Box(
-        modifier = (if (isFullSpan) modifier else modifier.aspectRatio(1f))
-            .appleShadow(cornerRadius = 16.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.White)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(16.dp)
-    ) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
+    if (memory.photoFilePath != null) {
+        // Photo-first layout (Task 51)
+        val audioDuration = remember(memory.audioFilePath) {
+            memory.audioFilePath?.let { path ->
+                try {
+                    val mmr = android.media.MediaMetadataRetriever()
+                    mmr.setDataSource(path)
+                    val ms = mmr.extractMetadata(
+                        android.media.MediaMetadataRetriever.METADATA_KEY_DURATION
+                    )?.toLongOrNull() ?: 0L
+                    mmr.release()
+                    val totalSec = (ms / 1000).toInt()
+                    "%d:%02d".format(totalSec / 60, totalSec % 60)
+                } catch (e: Exception) { null }
+            }
+        }
+        Box(
+            modifier = modifier
+                .appleShadow(cornerRadius = 16.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.White)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+        ) {
+            Column {
+                // Top: photo hero
+                AsyncImage(
+                    model = memory.photoFilePath,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(8.dp)
-                        .background(emotionColor, CircleShape)
+                        .fillMaxWidth()
+                        .height(180.dp)
                 )
-                Spacer(modifier = Modifier.weight(1f))
-                if (memory.audioFilePath != null) {
-                    Icon(
-                        imageVector = Icons.Default.Mic,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
-                if (memory.photoFilePath != null) {
-                    if (memory.audioFilePath != null) Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        imageVector = Icons.Default.Image,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(14.dp)
-                    )
+                // Bottom: text + chips
+                Column(modifier = Modifier.padding(16.dp)) {
+                    if (!memory.textContent.isNullOrBlank()) {
+                        Text(
+                            text = memory.textContent,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Date chip
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.10f),
+                                    RoundedCornerShape(50)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = dateLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                        // Emotion tag
+                        if (memory.emotionalTone != null) {
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        emotionColor.copy(alpha = 0.15f),
+                                        RoundedCornerShape(50)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = memory.emotionalTone.lowercase()
+                                        .replaceFirstChar { it.uppercase() },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = emotionColor.copy(alpha = 0.85f)
+                                )
+                            }
+                        }
+                        // Audio pill (if photo + audio)
+                        if (memory.audioFilePath != null && audioDuration != null) {
+                            Row(
+                                modifier = Modifier
+                                    .background(
+                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f),
+                                        RoundedCornerShape(50)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Mic,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Text(
+                                    text = audioDuration,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                        }
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = memory.title,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium
-                ),
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (!memory.textContent.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
+        }
+    } else {
+        // Text-only / audio-only cards — unchanged layout
+        Box(
+            modifier = (if (isFullSpan) modifier else modifier.aspectRatio(1f))
+                .appleShadow(cornerRadius = 16.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.White)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .padding(16.dp)
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(emotionColor, CircleShape)
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    if (memory.audioFilePath != null) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = memory.textContent,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                    maxLines = if (isFullSpan) 3 else 4,
+                    text = memory.title,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (!memory.textContent.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = memory.textContent,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        maxLines = if (isFullSpan) 3 else 4,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
