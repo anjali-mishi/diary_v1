@@ -1026,7 +1026,8 @@ fun CaptureScreen(
                     value = TextFieldValue(textContent, textFieldSelection),
                     onValueChange = { textContent = it.text; textFieldSelection = it.selection },
                     textStyle = MaterialTheme.typography.bodyLarge.copy(
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.onBackground,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     ),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     modifier = Modifier
@@ -1038,7 +1039,9 @@ fun CaptureScreen(
                             Text(
                                 text = "I remember...",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.secondary
+                                color = MaterialTheme.colorScheme.secondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                         innerTextField()
