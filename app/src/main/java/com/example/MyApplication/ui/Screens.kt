@@ -1123,10 +1123,18 @@ fun CaptureScreen(
                                 onNavigateBack()
                             }
                         },
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = Color.Transparent,
+                            contentColor = Color.White
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 12.dp)
-                            .appleShadow(8.dp),
+                            .appleShadow(8.dp)
+                            .background(
+                                Brush.horizontalGradient(listOf(Color(0xFFFF9966), Color(0xFFFF6699))),
+                                MaterialTheme.shapes.medium
+                            ),
                         shape = MaterialTheme.shapes.medium
                     ) {
                         Text(
@@ -1154,10 +1162,15 @@ fun CaptureScreen(
                                 recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                             }
                         },
-                        modifier = Modifier.appleShadow(100.dp),
+                        modifier = Modifier
+                            .appleShadow(100.dp)
+                            .background(
+                                Brush.horizontalGradient(listOf(Color(0xFFFF9966), Color(0xFFFF6699))),
+                                androidx.compose.foundation.shape.CircleShape
+                            ),
                         shape = androidx.compose.foundation.shape.CircleShape,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        containerColor = Color.Transparent,
+                        contentColor = Color.White,
                         elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
                     ) {
                         Icon(
@@ -1171,10 +1184,15 @@ fun CaptureScreen(
                         onClick = {
                             photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         },
-                        modifier = Modifier.appleShadow(100.dp),
+                        modifier = Modifier
+                            .appleShadow(100.dp)
+                            .background(
+                                Brush.horizontalGradient(listOf(Color(0xFFFF9966), Color(0xFFFF6699))),
+                                androidx.compose.foundation.shape.CircleShape
+                            ),
                         shape = androidx.compose.foundation.shape.CircleShape,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        containerColor = Color.Transparent,
+                        contentColor = Color.White,
                         elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
                     ) {
                         Icon(
