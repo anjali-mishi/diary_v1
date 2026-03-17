@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -1543,10 +1544,131 @@ fun BentoMemoryCard(
                 }
             }
         }
-    } else {
-        // Text-only / audio-only cards — unchanged layout
+    } else if (memory.audioFilePath != null) {
+        // Audio-first layout (Task 52)
+        val audioPlayer = remember { AudioPlayer() }
+        var isPlaying by remember { mutableStateOf(false) }
+        val audioDuration = remember(memory.audioFilePath) {
+            try {
+                val mmr = android.media.MediaMetadataRetriever()
+                mmr.setDataSource(memory.audioFilePath)
+                val ms = mmr.extractMetadata(
+                    android.media.MediaMetadataRetriever.METADATA_KEY_DURATION
+                )?.toLongOrNull() ?: 0L
+                mmr.release()
+                val totalSec = (ms / 1000).toInt()
+                "%d:%02d".format(totalSec / 60, totalSec % 60)
+            } catch (e: Exception) { null }
+        }
+        DisposableEffect(memory.audioFilePath) {
+            onDispose { audioPlayer.release() }
+        }
         Box(
-            modifier = (if (isFullSpan) modifier else modifier.aspectRatio(1f))
+            modifier = modifier
+                .appleShadow(cornerRadius = 16.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.White)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+        ) {
+            Column {
+                // Top: solid tone-colour block with play/pause button
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .background(emotionColor.copy(alpha = 0.85f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(Color.White, CircleShape)
+                                .clickable {
+                                    if (isPlaying) {
+                                        audioPlayer.stop()
+                                        isPlaying = false
+                                    } else {
+                                        audioPlayer.playFile(memory.audioFilePath) {
+                                            isPlaying = false
+                                        }
+                                        isPlaying = true
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                tint = emotionColor,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        if (audioDuration != null) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = audioDuration,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                        }
+                    }
+                }
+                // Bottom: text + chips (same structure as Task 51)
+                Column(modifier = Modifier.padding(16.dp)) {
+                    if (!memory.textContent.isNullOrBlank()) {
+                        Text(
+                            text = memory.textContent,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.10f),
+                                    RoundedCornerShape(50)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = dateLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                        if (memory.emotionalTone != null) {
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        emotionColor.copy(alpha = 0.15f),
+                                        RoundedCornerShape(50)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = memory.emotionalTone.lowercase()
+                                        .replaceFirstChar { it.uppercase() },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = emotionColor.copy(alpha = 0.85f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        // Text-only cards — unchanged layout
+        Box(
+            modifier = modifier.aspectRatio(1f)
                 .appleShadow(cornerRadius = 16.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color.White)
@@ -1560,15 +1682,6 @@ fun BentoMemoryCard(
                             .size(8.dp)
                             .background(emotionColor, CircleShape)
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-                    if (memory.audioFilePath != null) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
                 }
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
@@ -1587,7 +1700,7 @@ fun BentoMemoryCard(
                         text = memory.textContent,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary,
-                        maxLines = if (isFullSpan) 3 else 4,
+                        maxLines = 4,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
