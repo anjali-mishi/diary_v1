@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -303,7 +304,7 @@ fun DiaryScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Mic — tapping opens CaptureScreen and immediately starts recording
+                    // Waveform — tapping opens CaptureScreen and immediately starts recording
                     Box(
                         modifier = Modifier
                             .size(44.dp)
@@ -311,7 +312,7 @@ fun DiaryScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Mic,
+                            imageVector = Icons.Default.GraphicEq,
                             contentDescription = "Record voice memo",
                             tint = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(26.dp)
@@ -656,13 +657,10 @@ fun CaptureScreen(
     androidx.compose.runtime.LaunchedEffect(action) {
         when (action) {
             "text" -> {
-                // Small delay lets the slide-up animation settle before the keyboard appears
-                delay(300)
                 focusRequester.requestFocus()
                 keyboardController?.show()
             }
             "voice" -> {
-                delay(300)
                 val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
                 if (permission == PackageManager.PERMISSION_GRANTED) {
                     audioRecorder.startRecording()
@@ -672,7 +670,6 @@ fun CaptureScreen(
                 }
             }
             "image" -> {
-                delay(200)
                 photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             }
         }
@@ -878,7 +875,7 @@ fun CaptureScreen(
                     .fillMaxSize()
                     .padding(24.dp)
             ) {
-                // Top Bar: Close Button
+                // Top Bar: Close | Title | Balancing spacer
                 androidx.compose.foundation.layout.Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
@@ -891,18 +888,15 @@ fun CaptureScreen(
                             tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
+                    Text(
+                        text = if (memoryId != null) "Edit memory" else "Add a memory",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
                     Spacer(modifier = Modifier.width(48.dp))
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Add a memory",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // Optional Image Preview
                 if (selectedPhotoUri != null) {
@@ -1050,16 +1044,24 @@ fun CaptureScreen(
                         .weight(1f)
                         .focusRequester(focusRequester),
                     decorationBox = { innerTextField ->
-                        if (textContent.isEmpty() && selectedPhotoUri == null && recordedAudioUri == null) {
-                            Text(
-                                text = "I remember...",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.secondary,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (textContent.isEmpty() && selectedPhotoUri == null && recordedAudioUri == null) {
+                                Text(
+                                    text = "What would you like to remember?",
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontSize = 20.sp,
+                                        fontStyle = FontStyle.Italic
+                                    ),
+                                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.55f),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            innerTextField()
                         }
-                        innerTextField()
                     }
                 )
 
@@ -1188,19 +1190,14 @@ fun CaptureScreen(
                                 recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                             }
                         },
-                        modifier = Modifier
-                            .appleShadow(100.dp)
-                            .background(
-                                Brush.horizontalGradient(listOf(Color(0xFFFF9966), Color(0xFFFF6699))),
-                                androidx.compose.foundation.shape.CircleShape
-                            ),
+                        modifier = Modifier.appleShadow(100.dp),
                         shape = androidx.compose.foundation.shape.CircleShape,
-                        containerColor = Color.Transparent,
-                        contentColor = Color.White,
+                        containerColor = Color.White,
+                        contentColor = MaterialTheme.colorScheme.primary,
                         elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Mic,
+                            imageVector = Icons.Default.GraphicEq,
                             contentDescription = "Record Audio"
                         )
                     }
@@ -1210,15 +1207,10 @@ fun CaptureScreen(
                         onClick = {
                             photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         },
-                        modifier = Modifier
-                            .appleShadow(100.dp)
-                            .background(
-                                Brush.horizontalGradient(listOf(Color(0xFFFF9966), Color(0xFFFF6699))),
-                                androidx.compose.foundation.shape.CircleShape
-                            ),
+                        modifier = Modifier.appleShadow(100.dp),
                         shape = androidx.compose.foundation.shape.CircleShape,
-                        containerColor = Color.Transparent,
-                        contentColor = Color.White,
+                        containerColor = Color.White,
+                        contentColor = MaterialTheme.colorScheme.primary,
                         elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
                     ) {
                         Icon(

@@ -1,7 +1,9 @@
 # Memory App MVP: Progress & Strategy Report
 
 > [!NOTE]
-> This document provides a comprehensive overview of our development journey up to the current state. It summarizes our core strategy, the process we adhered to, all completed milestones, and our immediate next steps toward achieving a premium user experience.
+> **Purpose:** This is a living content document — written to support storytelling, retrospectives, and creator content (posts, threads, case studies) about how this app was built. Update it after each meaningful sprint so there's always a ready-to-publish snapshot of the journey.
+>
+> It also provides Claude with a comprehensive overview of the development journey: our core strategy, completed milestones, and immediate next steps toward a premium user experience.
 
 ## 1. Our Process & Collaborative Strategy
 
