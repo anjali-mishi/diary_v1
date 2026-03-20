@@ -1201,7 +1201,7 @@ fun CaptureScreen(
                 BasicTextField(
                     value = TextFieldValue(textContent, textFieldSelection),
                     onValueChange = { textContent = it.text; textFieldSelection = it.selection },
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    textStyle = MaterialTheme.typography.headlineMedium.copy(
                         color = MaterialTheme.colorScheme.onBackground,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     ),
@@ -1218,11 +1218,10 @@ fun CaptureScreen(
                             if (textContent.isEmpty() && selectedPhotoUri == null && recordedAudioUri == null) {
                                 Text(
                                     text = "What would you like to remember?",
-                                    style = MaterialTheme.typography.bodyLarge.copy(
-                                        fontSize = 20.sp,
+                                    style = MaterialTheme.typography.headlineMedium.copy(
                                         fontStyle = FontStyle.Italic
                                     ),
-                                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.55f),
+                                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -1310,43 +1309,16 @@ fun CaptureScreen(
                     }
                 }
 
-                // Floating "Save memory" CTA — shown when any content exists
-                if (textContent.isNotBlank() || selectedPhotoUri != null || recordedAudioUri != null) {
-                    androidx.compose.material3.Button(
-                        onClick = {
-                            viewModel.saveMemory(textContent, selectedPhotoUri, recordedAudioUri, recordedWaveformJson) {
-                                onNavigateBack()
-                            }
-                        },
-                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent,
-                            contentColor = Color.White
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 12.dp)
-                            .appleShadow(8.dp)
-                            .background(
-                                Brush.horizontalGradient(listOf(Color(0xFFFF9966), Color(0xFFFF6699))),
-                                MaterialTheme.shapes.medium
-                            ),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text(
-                            text = "Save memory",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
-                        )
-                    }
-                }
-
-                // Bottom Action Bar: Mic + Photo
+                // Bottom: mic | [save] | photo — mirrors STT's bottom-FAB pattern
+                val hasContent = textContent.isNotBlank() || selectedPhotoUri != null || recordedAudioUri != null
                 androidx.compose.foundation.layout.Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Mic Button — tap to start recording
+                    // Mic FAB — secondary action
                     androidx.compose.material3.FloatingActionButton(
                         onClick = {
                             val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
@@ -1363,13 +1335,38 @@ fun CaptureScreen(
                         contentColor = MaterialTheme.colorScheme.primary,
                         elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.GraphicEq,
-                            contentDescription = "Record Audio"
-                        )
+                        Icon(imageVector = Icons.Default.GraphicEq, contentDescription = "Record Audio")
                     }
 
-                    // Photo/Gallery Button
+                    // Save FAB — primary action, center, only when content exists
+                    Box(
+                        modifier = if (hasContent) Modifier
+                            .height(56.dp)
+                            .widthIn(min = 140.dp)
+                            .appleShadow(8.dp)
+                            .background(
+                                Brush.horizontalGradient(listOf(Color(0xFFFF9966), Color(0xFFFF6699))),
+                                RoundedCornerShape(28.dp)
+                            )
+                            .clickable {
+                                viewModel.saveMemory(textContent, selectedPhotoUri, recordedAudioUri, recordedWaveformJson) {
+                                    onNavigateBack()
+                                }
+                            }
+                        else Modifier.size(0.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (hasContent) {
+                            Text(
+                                text = "Save memory",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    // Photo FAB — secondary action
                     androidx.compose.material3.FloatingActionButton(
                         onClick = {
                             photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -1380,14 +1377,9 @@ fun CaptureScreen(
                         contentColor = MaterialTheme.colorScheme.primary,
                         elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Image,
-                            contentDescription = "Attach Photo"
-                        )
+                        Icon(imageVector = Icons.Default.Image, contentDescription = "Attach Photo")
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
