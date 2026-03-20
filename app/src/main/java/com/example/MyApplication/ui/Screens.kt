@@ -4,7 +4,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.scale
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -318,6 +323,20 @@ fun DiaryScreen(
                             modifier = Modifier.size(26.dp)
                         )
                     }
+                    // Mic — tapping opens CaptureScreen in speech-to-text mode
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clickable { onNavigateToCapture("speech") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Speech to text",
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
                     // Image — tapping opens CaptureScreen and immediately opens photo picker
                     Box(
                         modifier = Modifier
@@ -588,23 +607,46 @@ fun CaptureScreen(
     val amplitudeSamples = remember { androidx.compose.runtime.mutableStateListOf<Float>() }
     var recordedWaveformJson by remember { mutableStateOf<String?>(null) }
     var captureAudioProgress by remember { mutableStateOf(0f) }
+    var isSpeechListening by remember { mutableStateOf(false) }
+    var speechPartialText by remember { mutableStateOf("") }
+    var speechError by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val audioRecorder = remember { AudioRecorder(context) }
     val audioPlayer = remember { AudioPlayer() }
+    val speechRecognizerManager = remember { com.example.MyApplication.util.SpeechRecognizerManager(context) }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // Release player if user leaves screen
+    // Release player and STT if user leaves screen
     androidx.compose.runtime.DisposableEffect(Unit) {
-        onDispose { audioPlayer.release() }
+        onDispose {
+            audioPlayer.release()
+            speechRecognizerManager.release()
+        }
+    }
+
+    // Wire STT callbacks
+    speechRecognizerManager.onPartialResult = { partial -> speechPartialText = partial }
+    speechRecognizerManager.onFinalResult = { text ->
+        if (text.isNotBlank()) textContent = text
+        isSpeechListening = false
+        speechPartialText = ""
+    }
+    speechRecognizerManager.onError = { _ ->
+        speechError = "Couldn't understand. Tap the mic to try again."
+        isSpeechListening = false
+        speechPartialText = ""
     }
 
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
         contract = RequestPermission(),
         onResult = { isGranted ->
             if (isGranted) {
-                if (!isRecording) {
+                if (action == "speech") {
+                    speechRecognizerManager.startListening()
+                    isSpeechListening = true
+                } else if (!isRecording) {
                     audioRecorder.startRecording()
                     isRecording = true
                 }
@@ -671,6 +713,16 @@ fun CaptureScreen(
             }
             "image" -> {
                 photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }
+            "speech" -> {
+                val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                if (permission == PackageManager.PERMISSION_GRANTED) {
+                    speechRecognizerManager.startListening()
+                    isSpeechListening = true
+                    speechError = null
+                } else {
+                    recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }
             }
         }
     }
@@ -742,7 +794,117 @@ fun CaptureScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        if (isRecording) {
+        if (isSpeechListening) {
+            // ─── STT Listening Mode ────────────────────────────────────────────
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Top bar: X + pulsing green dot + "Listening"
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = {
+                        speechRecognizerManager.stopListening()
+                        isSpeechListening = false
+                        speechPartialText = ""
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cancel",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+                        val pulse = rememberInfiniteTransition(label = "pulse")
+                        val dotScale by pulse.animateFloat(
+                            initialValue = 0.8f,
+                            targetValue = 1.2f,
+                            animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
+                            label = "dotScale"
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .scale(dotScale)
+                                .background(Color(0xFF43A047), CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Listening",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(48.dp))
+                }
+
+                // Center: live partial transcript or prompt
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (speechPartialText.isNotEmpty()) speechPartialText else "Start speaking\u2026",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = if (speechPartialText.isNotEmpty())
+                            MaterialTheme.colorScheme.onBackground
+                        else
+                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+
+                // Error message (if any)
+                speechError?.let { err ->
+                    Text(
+                        text = err,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(bottom = 8.dp)
+                    )
+                }
+
+                // Pulsing green mic FAB — tap to stop
+                val fabPulse = rememberInfiniteTransition(label = "fabPulse")
+                val fabScale by fabPulse.animateFloat(
+                    initialValue = 1f,
+                    targetValue = 1.12f,
+                    animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
+                    label = "fabScale"
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material3.FloatingActionButton(
+                        onClick = {
+                            speechRecognizerManager.stopListening()
+                            isSpeechListening = false
+                        },
+                        modifier = Modifier
+                            .size(64.dp)
+                            .scale(fabScale),
+                        containerColor = Color(0xFF43A047)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Stop listening",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+            }
+        } else if (isRecording) {
             // ─── Recording Mode (Spotify-style full-screen) ────────────────────
             Column(modifier = Modifier.fillMaxSize()) {
                 // Top 60%: recording indicator + large timer
