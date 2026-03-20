@@ -633,8 +633,13 @@ fun CaptureScreen(
         isSpeechListening = false
         speechPartialText = ""
     }
-    speechRecognizerManager.onError = { _ ->
-        speechError = "Couldn't understand. Tap the mic to try again."
+    speechRecognizerManager.onError = { error ->
+        speechError = if (error == android.speech.SpeechRecognizer.ERROR_CLIENT ||
+                         error == android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+            "Speech recognition not available on this device."
+        } else {
+            "Couldn't understand. Tap the mic to try again."
+        }
         isSpeechListening = false
         speechPartialText = ""
     }
