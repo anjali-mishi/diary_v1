@@ -109,6 +109,7 @@ import com.example.myapplication.ui.viewmodel.CaptureViewModel
 import com.example.myapplication.ui.viewmodel.DiaryViewModel
 import com.example.myapplication.util.AudioPlayer
 import com.example.myapplication.util.AudioRecorder
+import com.example.myapplication.util.SpeechRecognizerManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -614,7 +615,7 @@ fun CaptureScreen(
     val context = LocalContext.current
     val audioRecorder = remember { AudioRecorder(context) }
     val audioPlayer = remember { AudioPlayer() }
-    val speechRecognizerManager = remember { com.example.MyApplication.util.SpeechRecognizerManager(context) }
+    val speechRecognizerManager = remember { SpeechRecognizerManager(context) }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
