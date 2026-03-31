@@ -7,8 +7,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.data.model.Memory
 import com.example.myapplication.data.repository.MemoryRepository
-import com.example.myapplication.util.EmotionDetector
 import com.example.myapplication.util.ImageStorage
+import com.example.myapplication.util.analyzeSentiment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -71,9 +71,9 @@ class CaptureViewModel(
                 else "Untitled"
             Log.d(TAG, "saveMemory: generated title='$title'")
 
-            // Detect emotional tone from text content
-            val detectedTone = EmotionDetector.detect(textContent)
-            Log.d(TAG, "saveMemory: detectedTone=$detectedTone")
+            // Analyse emotional tone — tries HuggingFace API, falls back to keywords
+            val sentiment = analyzeSentiment(textContent)
+            Log.d(TAG, "saveMemory: tone=${sentiment.tone} intensity=${sentiment.intensity} secondary=${sentiment.secondaryTone}")
 
             val isNew = existingId == null
             val memory = Memory(
@@ -84,7 +84,9 @@ class CaptureViewModel(
                 photoFilePath = persistedPhotoPath,
                 audioFilePath = audioUri,
                 waveformData = waveformData,
-                emotionalTone = detectedTone,
+                emotionalTone = sentiment.tone,
+                emotionIntensity = sentiment.intensity,
+                secondaryEmotionalTone = sentiment.secondaryTone,
                 createdAt = existingCreatedAt ?: now,
                 updatedAt = now
             )

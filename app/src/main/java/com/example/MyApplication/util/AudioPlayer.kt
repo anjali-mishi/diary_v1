@@ -14,6 +14,7 @@ class AudioPlayer {
 
     fun playFile(path: String, onCompletion: () -> Unit) {
         Log.d(TAG, "playFile: path=$path")
+        mediaPlayer?.release()
         mediaPlayer = MediaPlayer().apply {
             try {
                 setAudioAttributes(

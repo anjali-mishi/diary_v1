@@ -27,7 +27,7 @@ UI (Screens.kt) → ViewModels → MemoryRepository → MemoryDao → Room DB
 **Key architectural decisions:**
 - No Hilt — DI is done via custom `ViewModelProvider.Factory` instantiated in `AppNavigation.kt`, which is also where the database singleton and repository are created.
 - Single-activity app (`MainActivity`). Navigation is entirely in `AppNavigation.kt` (NavHost with three routes: `diary`, `capture/{memoryId}/{action}`, `index`).
-- All UI lives in one large file: `ui/Screens.kt` (~1700 lines). It contains `DiaryScreen`, `CaptureScreen`, `IndexScreen`, `BentoMemoryCard`, and card layout helpers.
+- All UI lives in one large file: `ui/Screens.kt` (~1900 lines). It contains `DiaryScreen`, `CaptureScreen`, `IndexScreen`, `BentoMemoryCard`, `IndexMemoryRow`, and card layout helpers.
 - `DiaryScreen` uses a persistent bottom sheet overlay for quick capture — it does not navigate to `CaptureScreen` for new entries on the home screen.
 - Emotion detection (`util/EmotionDetector.kt`) is purely keyword-based, returning one of: `HAPPY`, `SAD`, `ANXIOUS`, `CALM`, `EXCITED`, `NEUTRAL`.
 
@@ -48,7 +48,8 @@ Room DB is version 2. The migration adds the `waveformData` column; it lives in 
 Defined in `design.md` and implemented across `ui/theme/`:
 - **Fonts**: Trocchi (display/headings), SF Pro Rounded (body)
 - **Aesthetic**: warm paper/scrapbook feel — avoid stark whites and flat colours
-- **Emotion colours** (`ui/theme/Color.kt`) drive card tinting, waveform colour, and text-hero gradients throughout `Screens.kt`. Changes to emotion colours must be consistent across all three `emotionColor` `when` blocks in `Screens.kt` (lines ~355, ~1386, ~1675) plus the gradient block (~1607).
+- **Emotion colours** (`ui/theme/Color.kt`) drive card tinting, waveform colour, and text-hero gradients throughout `Screens.kt`. Changes to emotion colours must be consistent across all three `emotionColor` `when` blocks in `Screens.kt` (search for `emotionColor` — line numbers shift as file grows) plus the gradient block near `BentoMemoryCard`.
+- **STT colour**: `sttGreen = Color(0xFF43A047)` is defined locally in `CaptureScreen` (not in `Color.kt`) and used for the listening dot, mic button active state, and status text.
 - **Shadow helper**: `appleShadow()` modifier defined in `Screens.kt` — use it instead of raw `Modifier.shadow()` for the app's signature soft-shadow look.
 - Dark mode is intentionally disabled for the MVP (`forcedScheme = ColorScheme.Light` in `Theme.kt`).
 

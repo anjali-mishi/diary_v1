@@ -3,14 +3,23 @@ package com.example.myapplication.ui
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.ui.draw.scale
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.ui.draw.scale
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,6 +48,7 @@ import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.lazy.staggeredgrid.items as staggeredItems
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -59,6 +69,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Mic
@@ -66,15 +77,26 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -85,7 +107,10 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.myapplication.R
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
@@ -108,12 +133,67 @@ import coil.compose.AsyncImage
 import com.example.myapplication.data.model.Memory
 import com.example.myapplication.ui.viewmodel.CaptureViewModel
 import com.example.myapplication.ui.viewmodel.DiaryViewModel
+import com.example.myapplication.ui.theme.EmotionHappy
+import com.example.myapplication.ui.theme.EmotionSad
+import com.example.myapplication.ui.theme.EmotionAnxious
+import com.example.myapplication.ui.theme.EmotionCalm
+import com.example.myapplication.ui.theme.EmotionExcited
+import com.example.myapplication.ui.theme.EmotionNeutral
+import com.example.myapplication.ui.theme.GradientPeach
+import com.example.myapplication.ui.theme.GradientPink
+import com.example.myapplication.ui.theme.RecordingRed
 import com.example.myapplication.util.AudioPlayer
 import com.example.myapplication.util.AudioRecorder
+import com.example.myapplication.util.audioFileDuration
 import com.example.myapplication.util.SpeechRecognizerManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/** BG images for DiaryScreen, cycled round-robin once per session. */
+private val diaryBgImages = listOf(
+    R.drawable.bg_diary_1,
+    R.drawable.bg_diary_2,
+    R.drawable.bg_diary_3,
+    R.drawable.bg_diary_4,
+    R.drawable.bg_diary_5,
+    R.drawable.bg_diary_6,
+)
+
+/** Increments each time DiaryScreen is first created — drives round-robin BG selection. */
+private var diarySessionBgCounter = 0
+
+/**
+ * Overlays subtle ruled-paper horizontal lines on any composable.
+ * Gives memory cards a handwritten diary-page feel.
+ */
+fun Modifier.paperTexture(): Modifier = this.drawWithContent {
+    drawContent()
+    val spacing = 22.dp.toPx()
+    val count = (size.height / spacing).toInt() + 1
+    for (i in 0..count) {
+        val y = i * spacing
+        drawLine(
+            color = Color(0xFF8B7355).copy(alpha = 0.07f),
+            start = Offset(16.dp.toPx(), y),
+            end = Offset(size.width - 16.dp.toPx(), y),
+            strokeWidth = 0.8.dp.toPx()
+        )
+    }
+}
+
+/**
+ * Single source of truth for emotion → accent colour.
+ * Used by MemoryCard, BentoMemoryCard, IndexMemoryRow, and MemoryDetailScreen.
+ */
+fun emotionColor(tone: String?): Color = when (tone) {
+    "HAPPY"   -> EmotionHappy
+    "SAD"     -> EmotionSad
+    "ANXIOUS" -> EmotionAnxious
+    "CALM"    -> EmotionCalm
+    "EXCITED" -> EmotionExcited
+    else      -> EmotionNeutral
+}
 
 @Composable
 fun Modifier.appleShadow(cornerRadius: Dp = 100.dp): Modifier {
@@ -149,11 +229,15 @@ fun DiaryScreen(
     onNavigateToCapture: (action: String) -> Unit,
     onNavigateToIndex: () -> Unit,
     onNavigateToEdit: (String) -> Unit,
+    onNavigateToDetail: (String) -> Unit,
     viewModel: DiaryViewModel,
     modifier: Modifier = Modifier
 ) {
     val memories by viewModel.memories.collectAsState()
     var memoryToEditOrDelete by remember { mutableStateOf<Memory?>(null) }
+
+    // Pick one BG image per session, advancing round-robin on each new session
+    val bgIndex = remember { diarySessionBgCounter++ % diaryBgImages.size }
 
     if (memoryToEditOrDelete != null) {
         androidx.compose.material3.AlertDialog(
@@ -162,17 +246,18 @@ fun DiaryScreen(
             text = { Text("What would you like to do?") },
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = {
-                    val id = memoryToEditOrDelete!!.id
+                    val target = memoryToEditOrDelete ?: return@TextButton
                     memoryToEditOrDelete = null
-                    onNavigateToEdit(id)
+                    onNavigateToEdit(target.id)
                 }) {
                     Text("Edit")
                 }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = {
-                    viewModel.deleteMemory(memoryToEditOrDelete!!)
+                    val target = memoryToEditOrDelete ?: return@TextButton
                     memoryToEditOrDelete = null
+                    viewModel.deleteMemory(target)
                 }) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
@@ -181,11 +266,24 @@ fun DiaryScreen(
     }
 
     BoxWithConstraints(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+        modifier = modifier.fillMaxSize()
     ) {
         val sheetHeight = maxHeight * 0.15f
+
+        // Full-screen background — one image per session, round-robin
+        Image(
+            painter = painterResource(diaryBgImages[bgIndex]),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        // Dim scrim so cards and text remain readable
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.22f))
+        )
+
         // Empty state — centered in full screen, behind header and sheet
         if (memories.isEmpty()) {
             Column(
@@ -220,10 +318,10 @@ fun DiaryScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalItemSpacing = 8.dp,
             ) {
-                staggeredItems(sorted) { memory ->
+                staggeredItems(sorted, key = { it.id }) { memory ->
                     BentoMemoryCard(
                         memory = memory,
-                        onClick = { onNavigateToEdit(memory.id) },
+                        onClick = { onNavigateToDetail(memory.id) },
                         onLongClick = { memoryToEditOrDelete = memory }
                     )
                 }
@@ -234,7 +332,7 @@ fun DiaryScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f))
+                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 24.dp, vertical = 16.dp)
                 .align(Alignment.TopCenter),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -311,20 +409,6 @@ fun DiaryScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Waveform — tapping opens CaptureScreen and immediately starts recording
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clickable { onNavigateToCapture("voice") },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.GraphicEq,
-                            contentDescription = "Record voice memo",
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
                     // Mic — tapping opens CaptureScreen in speech-to-text mode
                     Box(
                         modifier = Modifier
@@ -335,6 +419,27 @@ fun DiaryScreen(
                         Icon(
                             imageVector = Icons.Default.Mic,
                             contentDescription = "Speech to text",
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    // Vertical divider
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(24.dp)
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f))
+                    )
+                    // Waveform — tapping opens CaptureScreen and immediately starts recording
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clickable { onNavigateToCapture("voice") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.GraphicEq,
+                            contentDescription = "Record voice memo",
                             tint = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(26.dp)
                         )
@@ -372,15 +477,7 @@ fun MemoryCard(
         dateFormatter.format(Date(memory.timestamp))
     }
 
-    // Map emotional tone to a soft accent color
-    val emotionColor = when (memory.emotionalTone) {
-        "HAPPY"   -> Color(0xFFC9A84C)
-        "SAD"     -> Color(0xFF6B9BD1)
-        "ANXIOUS" -> Color(0xFF9B8BC6)
-        "CALM"    -> Color(0xFF7FB5A0)
-        "EXCITED" -> Color(0xFFFF9F66)
-        else      -> Color(0xFFD4C5B9) // NEUTRAL / no tone
-    }
+    val emotionColor = emotionColor(memory.emotionalTone)
 
     val cardShape = RoundedCornerShape(32.dp)
 
@@ -529,7 +626,7 @@ fun MemoryCard(
                                         val h = v * size.height
                                         drawRect(
                                             brush = Brush.verticalGradient(
-                                                colors = listOf(Color(0xFFFF9966), Color(0xFFFF6699)),
+                                                colors = listOf(GradientPeach, GradientPink),
                                                 startY = size.height - h,
                                                 endY = size.height
                                             ),
@@ -612,6 +709,22 @@ fun CaptureScreen(
     var isSpeechListening by remember { mutableStateOf(false) }
     var speechPartialText by remember { mutableStateOf("") }
     var speechError by remember { mutableStateOf<String?>(null) }
+    var textContentBeforeSpeech by remember { mutableStateOf("") }
+    var sttPending by remember { mutableStateOf(false) }
+
+    val sttGreen = Color(0xFF43A047)
+    val sttPulse = rememberInfiniteTransition(label = "sttPulse")
+    val sttScaleAnimated by sttPulse.animateFloat(
+        initialValue = 1f, targetValue = 1.12f,
+        animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
+        label = "sttScale"
+    )
+    val listenPulse = rememberInfiniteTransition(label = "listenPulse")
+    val dotAlpha by listenPulse.animateFloat(
+        initialValue = 0.4f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
+        label = "dotAlpha"
+    )
 
     val context = LocalContext.current
     val audioRecorder = remember { AudioRecorder(context) }
@@ -623,19 +736,41 @@ fun CaptureScreen(
     // Release player and STT if user leaves screen
     androidx.compose.runtime.DisposableEffect(Unit) {
         onDispose {
+            audioRecorder.stopRecording()
             audioPlayer.release()
             speechRecognizerManager.release()
         }
     }
 
+    fun appendSpeech(base: String, incoming: String) = when {
+        incoming.isBlank() -> base
+        base.isBlank() -> incoming
+        else -> "$base $incoming"
+    }
+
+    // Single entry-point for starting STT — used by LaunchedEffect, permission callback, and toolbar button
+    val startStt = {
+        textContentBeforeSpeech = textContent
+        speechError = null
+        speechRecognizerManager.startListening()
+        isSpeechListening = true
+    }
+
     // Wire STT callbacks
-    speechRecognizerManager.onPartialResult = { partial -> speechPartialText = partial }
+    speechRecognizerManager.onPartialResult = { partial ->
+        textContent = appendSpeech(textContentBeforeSpeech, partial)
+        speechPartialText = partial
+    }
     speechRecognizerManager.onFinalResult = { text ->
-        if (text.isNotBlank()) textContent = text
+        textContent = appendSpeech(textContentBeforeSpeech, text)
+        textFieldSelection = TextRange(textContent.length)
         isSpeechListening = false
         speechPartialText = ""
+        focusRequester.requestFocus()
+        keyboardController?.show()
     }
     speechRecognizerManager.onError = { error ->
+        textContent = textContentBeforeSpeech
         speechError = if (error == android.speech.SpeechRecognizer.ERROR_CLIENT ||
                          error == android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
             "Speech recognition not available on this device."
@@ -650,14 +785,14 @@ fun CaptureScreen(
         contract = RequestPermission(),
         onResult = { isGranted ->
             if (isGranted) {
-                if (action == "speech") {
-                    speechRecognizerManager.startListening()
-                    isSpeechListening = true
+                if (sttPending) {
+                    startStt()
                 } else if (!isRecording) {
                     audioRecorder.startRecording()
                     isRecording = true
                 }
             }
+            sttPending = false
         }
     )
 
@@ -724,10 +859,9 @@ fun CaptureScreen(
             "speech" -> {
                 val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
                 if (permission == PackageManager.PERMISSION_GRANTED) {
-                    speechRecognizerManager.startListening()
-                    isSpeechListening = true
-                    speechError = null
+                    startStt()
                 } else {
+                    sttPending = true
                     recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 }
             }
@@ -801,117 +935,7 @@ fun CaptureScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        if (isSpeechListening) {
-            // ─── STT Listening Mode ────────────────────────────────────────────
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Top bar: X + pulsing green dot + "Listening"
-                androidx.compose.foundation.layout.Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = {
-                        speechRecognizerManager.stopListening()
-                        isSpeechListening = false
-                        speechPartialText = ""
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cancel",
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                    androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
-                        val pulse = rememberInfiniteTransition(label = "pulse")
-                        val dotScale by pulse.animateFloat(
-                            initialValue = 0.8f,
-                            targetValue = 1.2f,
-                            animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
-                            label = "dotScale"
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .scale(dotScale)
-                                .background(Color(0xFF43A047), CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Listening",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(48.dp))
-                }
-
-                // Center: live partial transcript or prompt
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (speechPartialText.isNotEmpty()) speechPartialText else "Start speaking\u2026",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = if (speechPartialText.isNotEmpty())
-                            MaterialTheme.colorScheme.onBackground
-                        else
-                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                }
-
-                // Error message (if any)
-                speechError?.let { err ->
-                    Text(
-                        text = err,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(bottom = 8.dp)
-                    )
-                }
-
-                // Pulsing green mic FAB — tap to stop
-                val fabPulse = rememberInfiniteTransition(label = "fabPulse")
-                val fabScale by fabPulse.animateFloat(
-                    initialValue = 1f,
-                    targetValue = 1.12f,
-                    animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
-                    label = "fabScale"
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 48.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    androidx.compose.material3.FloatingActionButton(
-                        onClick = {
-                            speechRecognizerManager.stopListening()
-                            isSpeechListening = false
-                        },
-                        modifier = Modifier
-                            .size(64.dp)
-                            .scale(fabScale),
-                        containerColor = Color(0xFF43A047)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = "Stop listening",
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                }
-            }
-        } else if (isRecording) {
+        if (isRecording) {
             // ─── Recording Mode (Spotify-style full-screen) ────────────────────
             Column(modifier = Modifier.fillMaxSize()) {
                 // Top 60%: recording indicator + large timer
@@ -946,7 +970,7 @@ fun CaptureScreen(
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
-                                    .background(Color(0xFFE53935), CircleShape)
+                                    .background(RecordingRed, CircleShape)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
@@ -995,7 +1019,7 @@ fun CaptureScreen(
                         drawPath(
                             path = path,
                             brush = Brush.verticalGradient(
-                                colors = listOf(Color(0x26FF9966), Color(0x26FF6699)),
+                                colors = listOf(GradientPeach.copy(alpha = 0.15f), GradientPink.copy(alpha = 0.15f)),
                                 startY = 0f,
                                 endY = size.height
                             )
@@ -1018,7 +1042,7 @@ fun CaptureScreen(
                                 .size(64.dp)
                                 .appleShadow(100.dp),
                             shape = CircleShape,
-                            containerColor = Color(0xFFE53935),
+                            containerColor = RecordingRed,
                             contentColor = Color.White,
                             elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
                         ) {
@@ -1039,12 +1063,13 @@ fun CaptureScreen(
             }
         } else {
             // ─── Normal Capture Mode ───────────────────────────────────────────
+            val hasContent = textContent.isNotBlank() || selectedPhotoUri != null || recordedAudioUri != null
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(24.dp)
             ) {
-                // Top Bar: Close | Title | Balancing spacer
+                // Top Bar: Close | Title | Save
                 androidx.compose.foundation.layout.Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
@@ -1062,7 +1087,39 @@ fun CaptureScreen(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                    Spacer(modifier = Modifier.width(48.dp))
+                    // Save — always visible, active only when there's content
+                    Box(
+                        modifier = Modifier
+                            .height(36.dp)
+                            .widthIn(min = 90.dp)
+                            .then(if (hasContent) Modifier.appleShadow(6.dp) else Modifier)
+                            .background(
+                                if (hasContent)
+                                    Brush.horizontalGradient(listOf(GradientPeach, GradientPink))
+                                else
+                                    Brush.horizontalGradient(listOf(
+                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
+                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)
+                                    )),
+                                RoundedCornerShape(18.dp)
+                            )
+                            .then(
+                                if (hasContent) Modifier.clickable {
+                                    viewModel.saveMemory(textContent, selectedPhotoUri, recordedAudioUri, recordedWaveformJson) {
+                                        onNavigateBack()
+                                    }
+                                } else Modifier
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Save",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (hasContent) Color.White else MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f),
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1115,10 +1172,10 @@ fun CaptureScreen(
                                     audioPlayer.stop()
                                     isAudioPlaying = false
                                 } else {
-                                    audioPlayer.playFile(recordedAudioUri!!) {
-                                        isAudioPlaying = false
+                                    recordedAudioUri?.let { uri ->
+                                        audioPlayer.playFile(uri) { isAudioPlaying = false }
+                                        isAudioPlaying = true
                                     }
-                                    isAudioPlaying = true
                                 }
                             },
                             modifier = Modifier.size(28.dp)
@@ -1157,7 +1214,7 @@ fun CaptureScreen(
                                         val h = v * size.height
                                         drawRect(
                                             brush = Brush.verticalGradient(
-                                                colors = listOf(Color(0xFFFF9966), Color(0xFFFF6699)),
+                                                colors = listOf(GradientPeach, GradientPink),
                                                 startY = size.height - h,
                                                 endY = size.height
                                             ),
@@ -1203,9 +1260,13 @@ fun CaptureScreen(
                 BasicTextField(
                     value = TextFieldValue(textContent, textFieldSelection),
                     onValueChange = { textContent = it.text; textFieldSelection = it.selection },
-                    textStyle = MaterialTheme.typography.headlineMedium.copy(
-                        color = MaterialTheme.colorScheme.onBackground,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    readOnly = isSpeechListening,
+                    textStyle = MaterialTheme.typography.titleLarge.copy(
+                        color = if (isSpeechListening && speechPartialText.isNotEmpty())
+                            MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                        else
+                            MaterialTheme.colorScheme.onBackground,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Start
                     ),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     modifier = Modifier
@@ -1215,16 +1276,16 @@ fun CaptureScreen(
                     decorationBox = { innerTextField ->
                         Box(
                             modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
+                            contentAlignment = Alignment.TopStart
                         ) {
                             if (textContent.isEmpty() && selectedPhotoUri == null && recordedAudioUri == null) {
                                 Text(
                                     text = "What would you like to remember?",
-                                    style = MaterialTheme.typography.headlineMedium.copy(
+                                    style = MaterialTheme.typography.titleLarge.copy(
                                         fontStyle = FontStyle.Italic
                                     ),
                                     color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
@@ -1234,6 +1295,21 @@ fun CaptureScreen(
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                @Composable
+                fun CaptureChip(label: String, onClick: () -> Unit) {
+                    androidx.compose.material3.SuggestionChip(
+                        onClick = onClick,
+                        label = { Text(text = label, style = MaterialTheme.typography.bodySmall) },
+                        modifier = Modifier.appleShadow(),
+                        shape = CircleShape,
+                        colors = androidx.compose.material3.SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = Color.White
+                        ),
+                        border = null,
+                        elevation = androidx.compose.material3.SuggestionChipDefaults.suggestionChipElevation(0.dp)
+                    )
+                }
 
                 // Predictive suggestion chips — shown while typing, rule-based only
                 if (textContent.isNotBlank()) {
@@ -1245,30 +1321,14 @@ fun CaptureScreen(
                     if (suggestions.isNotEmpty()) {
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 12.dp)
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
                         ) {
-                            items(suggestions) { suggestion ->
-                                androidx.compose.material3.SuggestionChip(
-                                    onClick = {
-                                        val newText = textContent.trimEnd() + " " + suggestion
-                                        textContent = newText
-                                        textFieldSelection = TextRange(newText.length)
-                                    },
-                                    label = {
-                                        Text(
-                                            text = suggestion,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    },
-                                    modifier = Modifier.appleShadow(4.dp),
-                                    colors = androidx.compose.material3.SuggestionChipDefaults.suggestionChipColors(
-                                        containerColor = Color.White
-                                    ),
-                                    border = null,
-                                    elevation = androidx.compose.material3.SuggestionChipDefaults.suggestionChipElevation(0.dp)
-                                )
+                            items(suggestions, key = { it }) { suggestion ->
+                                CaptureChip(label = suggestion) {
+                                    val newText = textContent.trimEnd() + " " + suggestion
+                                    textContent = newText
+                                    textFieldSelection = TextRange(newText.length)
+                                }
                             }
                         }
                     }
@@ -1284,104 +1344,139 @@ fun CaptureScreen(
                     )
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 12.dp)
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
                     ) {
-                        items(starters) { prompt ->
-                            androidx.compose.material3.SuggestionChip(
-                                onClick = {
-                                    textContent = prompt
-                                    textFieldSelection = TextRange(prompt.length)
-                                },
-                                label = {
-                                    Text(
-                                        text = prompt,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                },
-                                modifier = Modifier.appleShadow(4.dp),
-                                colors = androidx.compose.material3.SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = Color.White
-                                ),
-                                border = null,
-                                elevation = androidx.compose.material3.SuggestionChipDefaults.suggestionChipElevation(0.dp)
-                            )
+                        items(starters, key = { it }) { prompt ->
+                            CaptureChip(label = prompt) {
+                                textContent = prompt
+                                textFieldSelection = TextRange(prompt.length)
+                            }
                         }
                     }
                 }
 
-                // Bottom: mic | [save] | photo — mirrors STT's bottom-FAB pattern
-                val hasContent = textContent.isNotBlank() || selectedPhotoUri != null || recordedAudioUri != null
+                // Media icons + STT mic — just above suggestion chips, all grouped right
+                val sttScale = if (isSpeechListening) sttScaleAnimated else 1f
                 androidx.compose.foundation.layout.Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 24.dp),
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceAround,
+                        .padding(bottom = 10.dp),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Mic FAB — secondary action
-                    androidx.compose.material3.FloatingActionButton(
-                        onClick = {
-                            val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-                            if (permission == PackageManager.PERMISSION_GRANTED) {
-                                audioRecorder.startRecording()
-                                isRecording = true
-                            } else {
-                                recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                            }
-                        },
-                        modifier = Modifier.appleShadow(100.dp),
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        containerColor = Color.White,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.GraphicEq, contentDescription = "Record Audio")
-                    }
-
-                    // Save FAB — primary action, center, only when content exists
+                    // Tertiary: STT Mic — left of waveform icon
                     Box(
-                        modifier = if (hasContent) Modifier
-                            .height(56.dp)
-                            .widthIn(min = 140.dp)
-                            .appleShadow(8.dp)
+                        modifier = Modifier
+                            .scale(sttScale)
+                            .size(40.dp)
                             .background(
-                                Brush.horizontalGradient(listOf(Color(0xFFFF9966), Color(0xFFFF6699))),
-                                RoundedCornerShape(28.dp)
+                                if (isSpeechListening) sttGreen else MaterialTheme.colorScheme.secondary.copy(alpha = 0.10f),
+                                CircleShape
                             )
                             .clickable {
-                                viewModel.saveMemory(textContent, selectedPhotoUri, recordedAudioUri, recordedWaveformJson) {
-                                    onNavigateBack()
+                                if (isSpeechListening) {
+                                    speechRecognizerManager.stopListening()
+                                    isSpeechListening = false
+                                    speechPartialText = ""
+                                } else {
+                                    val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                                    if (permission == PackageManager.PERMISSION_GRANTED) {
+                                        startStt()
+                                    } else {
+                                        sttPending = true
+                                        recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                    }
                                 }
-                            }
-                        else Modifier.size(0.dp),
+                            },
                         contentAlignment = Alignment.Center
                     ) {
-                        if (hasContent) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = if (isSpeechListening) "Stop listening" else "Speech to text",
+                            tint = if (isSpeechListening) Color.White else MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    // GraphicEq | divider | Image
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clickable {
+                                val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                                if (permission == PackageManager.PERMISSION_GRANTED) {
+                                    audioRecorder.startRecording()
+                                    isRecording = true
+                                } else {
+                                    recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.GraphicEq,
+                            contentDescription = "Record Audio",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(20.dp)
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.18f))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clickable {
+                                photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = "Attach Photo",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+
+                // Listening indicator + error — shown when STT is active
+                if (isSpeechListening || speechError != null) {
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+                    ) {
+                        if (isSpeechListening) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(sttGreen.copy(alpha = dotAlpha), CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Save memory",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
+                                text = if (speechPartialText.isEmpty()) "Listening…" else "Listening",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = sttGreen
+                            )
+                        }
+                        speechError?.let { err ->
+                            Text(
+                                text = err,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }
-
-                    // Photo FAB — secondary action
-                    androidx.compose.material3.FloatingActionButton(
-                        onClick = {
-                            photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        },
-                        modifier = Modifier.appleShadow(100.dp),
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        containerColor = Color.White,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(0.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.Image, contentDescription = "Attach Photo")
-                    }
                 }
+
             }
         }
     }
@@ -1391,11 +1486,21 @@ fun CaptureScreen(
 fun IndexScreen(
     onNavigateBack: () -> Unit,
     onNavigateToEdit: (String) -> Unit,
+    onNavigateToDetail: (String) -> Unit,
     viewModel: DiaryViewModel,
     modifier: Modifier = Modifier
 ) {
     val memories by viewModel.memories.collectAsState()
     var memoryToEditOrDelete by remember { mutableStateOf<Memory?>(null) }
+
+    // Scroll-reactive TopAppBar
+    val topBarScrolled = LocalTopBarScrolled.current
+    val gridState = rememberLazyStaggeredGridState()
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.firstVisibleItemIndex > 0 || gridState.firstVisibleItemScrollOffset > 0 }
+            .distinctUntilChanged()
+            .collect { scrolled -> topBarScrolled.value = scrolled }
+    }
 
     if (memoryToEditOrDelete != null) {
         androidx.compose.material3.AlertDialog(
@@ -1404,17 +1509,18 @@ fun IndexScreen(
             text = { Text("What would you like to do?") },
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = {
-                    val id = memoryToEditOrDelete!!.id
+                    val target = memoryToEditOrDelete ?: return@TextButton
                     memoryToEditOrDelete = null
-                    onNavigateToEdit(id)
+                    onNavigateToEdit(target.id)
                 }) {
                     Text("Edit")
                 }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = {
-                    viewModel.deleteMemory(memoryToEditOrDelete!!)
+                    val target = memoryToEditOrDelete ?: return@TextButton
                     memoryToEditOrDelete = null
+                    viewModel.deleteMemory(target)
                 }) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
@@ -1456,9 +1562,10 @@ fun IndexScreen(
         } else {
             LazyVerticalStaggeredGrid(
                 columns = StaggeredGridCells.Fixed(2),
+                state = gridState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
-                    start = 20.dp, end = 20.dp, top = 84.dp, bottom = 40.dp
+                    start = 20.dp, end = 20.dp, top = 64.dp, bottom = 40.dp
                 ),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalItemSpacing = 8.dp,
@@ -1480,12 +1587,88 @@ fun IndexScreen(
                         )
                     }
 
-                    staggeredItems(memoriesOnDate) { memory ->
-                        BentoMemoryCard(
-                            memory = memory,
-                            onClick = { onNavigateToEdit(memory.id) },
-                            onLongClick = { memoryToEditOrDelete = memory }
-                        )
+                    staggeredItems(memoriesOnDate, key = { it.id }) { memory ->
+                        // ── Swipe-left-to-edit ─────────────────────────────────────
+                        val swipeOffset = remember(memory.id) { Animatable(0f) }
+                        val swipeScope  = rememberCoroutineScope()
+                        val thresholdPx = with(LocalDensity.current) { 72.dp.toPx() }
+                        val cardEmotionColor = when (memory.emotionalTone) {
+                            "HAPPY"   -> Color(0xFFC9A84C)
+                            "SAD"     -> Color(0xFF6B9BD1)
+                            "ANXIOUS" -> Color(0xFF9B8BC6)
+                            "CALM"    -> Color(0xFF7FB5A0)
+                            "EXCITED" -> Color(0xFFFF9F66)
+                            else      -> Color(0xFFD4C5B9)
+                        }
+                        val revealProgress = (-swipeOffset.value / thresholdPx).coerceIn(0f, 1f)
+
+                        Box {
+                            // Tinted edit-icon background that scales in behind the sliding card
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(
+                                        cardEmotionColor.copy(alpha = 0.15f * revealProgress)
+                                    ),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit",
+                                    tint = cardEmotionColor,
+                                    modifier = Modifier
+                                        .padding(end = 16.dp)
+                                        .scale(revealProgress)
+                                )
+                            }
+
+                            BentoMemoryCard(
+                                memory = memory,
+                                onClick = { onNavigateToDetail(memory.id) },
+                                onLongClick = { memoryToEditOrDelete = memory },
+                                modifier = Modifier
+                                    .offset { IntOffset(swipeOffset.value.roundToInt(), 0) }
+                                    .pointerInput(memory.id) {
+                                        detectHorizontalDragGestures(
+                                            onDragEnd = {
+                                                if (-swipeOffset.value >= thresholdPx) {
+                                                    // Threshold met — navigate to edit
+                                                    onNavigateToEdit(memory.id)
+                                                } else {
+                                                    // Snap card back with spring
+                                                    swipeScope.launch {
+                                                        swipeOffset.animateTo(
+                                                            targetValue = 0f,
+                                                            animationSpec = spring(
+                                                                stiffness = Spring.StiffnessMediumLow
+                                                            )
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            onDragCancel = {
+                                                swipeScope.launch {
+                                                    swipeOffset.animateTo(
+                                                        targetValue = 0f,
+                                                        animationSpec = spring(
+                                                            stiffness = Spring.StiffnessMediumLow
+                                                        )
+                                                    )
+                                                }
+                                            },
+                                            onHorizontalDrag = { _, dragAmount ->
+                                                // Only allow leftward (negative) movement
+                                                val newOffset = (swipeOffset.value + dragAmount)
+                                                    .coerceAtMost(0f)
+                                                swipeScope.launch {
+                                                    swipeOffset.snapTo(newOffset)
+                                                }
+                                            }
+                                        )
+                                    }
+                            )
+                        }
                     }
 
                     // Thin divider — full width
@@ -1500,33 +1683,10 @@ fun IndexScreen(
             }
         }
 
-        // Top header bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f))
-                .padding(horizontal = 8.dp, vertical = 8.dp)
-                .align(Alignment.TopCenter),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onNavigateBack) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "My Diaries",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
     }
 }
 
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun BentoMemoryCard(
     memory: Memory,
@@ -1535,39 +1695,36 @@ fun BentoMemoryCard(
     modifier: Modifier = Modifier
 ) {
     val isFullSpan = memory.photoFilePath != null || memory.audioFilePath != null
-    val emotionColor = when (memory.emotionalTone) {
-        "HAPPY"   -> Color(0xFFC9A84C)
-        "SAD"     -> Color(0xFF6B9BD1)
-        "ANXIOUS" -> Color(0xFF9B8BC6)
-        "CALM"    -> Color(0xFF7FB5A0)
-        "EXCITED" -> Color(0xFFFF9F66)
-        else      -> Color(0xFFD4C5B9)
-    }
+    val emotionColor = emotionColor(memory.emotionalTone)
     val dateLabel = remember(memory.timestamp) {
         SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(memory.timestamp))
     }
 
-    if (memory.photoFilePath != null) {
-        // Photo-first layout (Task 51)
-        val audioDuration = remember(memory.audioFilePath) {
-            memory.audioFilePath?.let { path ->
-                try {
-                    val mmr = android.media.MediaMetadataRetriever()
-                    mmr.setDataSource(path)
-                    val ms = mmr.extractMetadata(
-                        android.media.MediaMetadataRetriever.METADATA_KEY_DURATION
-                    )?.toLongOrNull() ?: 0L
-                    mmr.release()
-                    val totalSec = (ms / 1000).toInt()
-                    "%d:%02d".format(totalSec / 60, totalSec % 60)
-                } catch (e: Exception) { null }
-            }
+    // Shared-element bounds — active when inside a SharedTransitionLayout nav destination
+    val sharedTransitionScope = LocalSharedTransitionScope.current
+    val animatedVisibilityScope = LocalNavAnimatedVisibilityScope.current
+    val cardSharedModifier: Modifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+        with(sharedTransitionScope) {
+            Modifier.sharedBounds(
+                rememberSharedContentState(key = "card-${memory.id}"),
+                animatedVisibilityScope = animatedVisibilityScope,
+                enter = fadeIn(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)),
+                exit = fadeOut(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)),
+                boundsTransform = { _, _ -> spring(stiffness = Spring.StiffnessMediumLow) },
+                clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(16.dp))
+            )
         }
+    } else Modifier
+
+    if (memory.photoFilePath != null) {
+        // Photo-first layout: AsyncImage hero + content row below
+        val audioDuration = remember(memory.audioFilePath) { audioFileDuration(memory.audioFilePath) }
         Box(
             modifier = modifier
+                .then(cardSharedModifier)
                 .appleShadow(cornerRadius = 16.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color.White)
+                .background(Color(0xFFFEFCF7))
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
         ) {
             Column {
@@ -1581,7 +1738,7 @@ fun BentoMemoryCard(
                         .height(180.dp)
                 )
                 // Bottom: text + chips
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.paperTexture().padding(16.dp)) {
                     if (!memory.textContent.isNullOrBlank()) {
                         Text(
                             text = memory.textContent,
@@ -1631,29 +1788,18 @@ fun BentoMemoryCard(
             }
         }
     } else if (memory.audioFilePath != null) {
-        // Audio-first layout (Task 52)
         val audioPlayer = remember { AudioPlayer() }
         var isPlaying by remember { mutableStateOf(false) }
-        val audioDuration = remember(memory.audioFilePath) {
-            try {
-                val mmr = android.media.MediaMetadataRetriever()
-                mmr.setDataSource(memory.audioFilePath)
-                val ms = mmr.extractMetadata(
-                    android.media.MediaMetadataRetriever.METADATA_KEY_DURATION
-                )?.toLongOrNull() ?: 0L
-                mmr.release()
-                val totalSec = (ms / 1000).toInt()
-                "%d:%02d".format(totalSec / 60, totalSec % 60)
-            } catch (e: Exception) { null }
-        }
+        val audioDuration = remember(memory.audioFilePath) { audioFileDuration(memory.audioFilePath) }
         DisposableEffect(memory.audioFilePath) {
             onDispose { audioPlayer.release() }
         }
         Box(
             modifier = modifier
+                .then(cardSharedModifier)
                 .appleShadow(cornerRadius = 16.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color.White)
+                .background(Color(0xFFFEFCF7))
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
         ) {
             Column {
@@ -1726,8 +1872,8 @@ fun BentoMemoryCard(
                         )
                     }
                 }
-                // Bottom: text + chips (same structure as Task 51)
-                Column(modifier = Modifier.padding(16.dp)) {
+                // Bottom: text + chips
+                Column(modifier = Modifier.paperTexture().padding(16.dp)) {
                     if (!memory.textContent.isNullOrBlank()) {
                         Text(
                             text = memory.textContent,
@@ -1752,7 +1898,7 @@ fun BentoMemoryCard(
             }
         }
     } else {
-        // Text-hero layout (Task 53) — full-bleed gradient, bold headline
+        // Text-hero layout — full-bleed gradient, bold headline
         // No sentiment → plain white; HAPPY → subtle pastel yellow; others → tint of emotionColor
         val hasTone = memory.emotionalTone in setOf("HAPPY", "SAD", "ANXIOUS", "CALM", "EXCITED")
         val gradientColors = remember(memory.emotionalTone) {
@@ -1776,12 +1922,14 @@ fun BentoMemoryCard(
         }
         Box(
             modifier = modifier
+                .then(cardSharedModifier)
                 .fillMaxWidth()
                 .heightIn(min = 110.dp)
                 .appleShadow(cornerRadius = 16.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color.White)
+                .background(Color(0xFFFEFCF7))
                 .background(gradientBrush)
+                .paperTexture()
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 .padding(16.dp)
         ) {
@@ -1824,14 +1972,7 @@ fun IndexMemoryRow(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val emotionColor = when (memory.emotionalTone) {
-        "HAPPY"   -> Color(0xFFC9A84C)
-        "SAD"     -> Color(0xFF6B9BD1)
-        "ANXIOUS" -> Color(0xFF9B8BC6)
-        "CALM"    -> Color(0xFF7FB5A0)
-        "EXCITED" -> Color(0xFFFF9F66)
-        else      -> Color(0xFFD4C5B9)
-    }
+    val emotionColor = emotionColor(memory.emotionalTone)
 
     Row(
         modifier = modifier

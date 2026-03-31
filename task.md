@@ -48,7 +48,7 @@ This is your roadmap to building the Memory App, designed specifically for you a
 - [x] **Task 21: Handle Photo Storage.** Implement gallery/camera selection and saving the *path* to the database.
 - [x] **Task 22: Audio Recording.** Integrate the MediaRecorder API to attach audio files.
   - *UI Refinement:* Consolidated bottom action bar from 3 buttons to 2. Mic button now handles recording (start/stop). Redundant PlayArrow record button removed.
-- [~] **Task 23: Speech-to-Text.** *(Skipped for MVP — Mic button repurposed for audio recording. Speech-to-text can be added in a future iteration using Android SpeechRecognizer API.)*
+- [x] **Task 23: Speech-to-Text.** Inline STT via `SpeechRecognizerManager` (`util/SpeechRecognizerManager.kt`). Mic icon in `CaptureScreen` toolbar starts listening; partial results stream live into the text field; final result appended on stop; error rolls back to pre-speech text. Runs alongside audio recording — separate permission path via `sttPending` flag.
 - [x] **Task 24: Emotional Tone Detection.** Build the simple keyword matching logic to assign colors automatically.
 
 ## Phase 7: Polish and Remaining Navigation
@@ -269,21 +269,21 @@ Span types:
   - Cards retain their existing `appleShadow`, corner radius, and white fill — only their grid slot changes.
   - No changes to `CaptureScreen` or data layer.
 
-- [ ] **Task 51: Media-First Card Layout — Photo on Top, Content Below.**
+- [x] **Task 51: Media-First Card Layout — Photo on Top, Content Below.**
   - For cards where `photoUri != null`:
     - Top section: `AsyncImage` (Coil) fills the full card width at a fixed height of `180.dp`, `contentScale = Crop`, clipped to the card's top corners.
     - Bottom section: memory text (capped at 2 lines, ellipsized), date chip, and emotion tag sit below the image in a `Column` with `16.dp` padding.
   - If both photo and audio exist, photo takes the top slot; a small inline audio pill (mic icon + duration) appears inside the bottom content section.
   - No layout changes to text-only or audio-only cards in this task.
 
-- [ ] **Task 52: Audio-First Card Layout — Album-Art Block on Top, Content Below.**
+- [x] **Task 52: Audio-First Card Layout — Album-Art Block on Top, Content Below.**
   - For cards where `audioUri != null && photoUri == null`:
     - Top section: a solid colour block, `height = 120.dp`, full card width, using the memory's emotional tone colour (from `EmotionTone` palette). Centred inside: a circular white play/pause `IconButton` (`48.dp`) + audio duration label beneath it in `Caption` style.
     - Bottom section: memory text (capped at 2 lines), date chip, and emotion tag — same structure as Task 51's bottom section.
   - Tapping the play button triggers audio playback inline (reuse existing audio player logic); tapping anywhere else on the card opens the memory.
   - The colour block uses the same `EmotionTone` → `Color` mapping already established in the design system.
 
-- [ ] **Task 53: Text-Hero Card Layout — Full-Bleed Gradient with Bold Headline.**
+- [x] **Task 53: Text-Hero Card Layout — Full-Bleed Gradient with Bold Headline.**
   - For cards where `photoUri == null && audioUri == null`:
     - Card background: full-bleed `Brush.linearGradient` using the memory's emotional tone colour (light→slightly-darker tint, 2-stop), replacing the plain white fill.
     - First sentence/line of the memory text is extracted and rendered as a **headline** (`TitleMedium` or `HeadlineSmall`, bold, max 2 lines) at the top of the card.
@@ -354,7 +354,7 @@ Text-only memory:
 
 ---
 
-- [ ] **Task 54: DetailScreen Scaffold + Navigation Wiring.**
+- [x] **Task 54: DetailScreen Scaffold + Navigation Wiring.**
   - Create `MemoryDetailScreen(memoryId: Long)` composable in a new file.
   - Register it as a destination in `NavHost` with route `"memory/{memoryId}"`.
   - In `IndexScreen`, replace the existing card `onClick` lambda with `navController.navigate("memory/${memory.id}")`.
@@ -362,29 +362,183 @@ Text-only memory:
   - `MemoryDetailScreen` has a top app bar with a back arrow (left) and an edit `IconButton` (pencil icon, top-right); tapping edit navigates to `"capture/{memoryId}"`.
   - No UI chrome beyond the app bar in this task — content area left as a placeholder `Box`.
 
-- [ ] **Task 55: Card-to-Fullscreen Expand Transition.**
+- [x] **Task 55: Card-to-Fullscreen Expand Transition.**
   - Wrap `NavHost` in `SharedTransitionLayout` (Compose `1.7+` shared-element API).
   - Apply `Modifier.sharedElement(...)` to the card container in `IndexScreen` and the root container in `MemoryDetailScreen`, keyed on `"card-${memory.id}"`.
   - Transition spec: `spring(stiffness = Spring.StiffnessMediumLow)` for bounds, `tween(300, easing = FastOutSlowInEasing)` for fade — approximates ease-in/ease-out feel.
   - If `SharedTransitionLayout` is unavailable for the project's Compose version, fall back to `AnimatedContent` with a `slideInVertically + fadeIn` / `slideOutVertically + fadeOut` pair using the same easing.
   - Ensure the card's corner radius animates from its resting value (`12.dp`) to `0.dp` as the card expands to fill the screen.
 
-- [ ] **Task 56: Parallax Media Hero (Photo & Audio Cards).**
+- [x] **Task 56: Parallax Media Hero (Photo & Audio Cards).**
   - In `MemoryDetailScreen`, implement a `NestedScrollConnection` that translates the hero image/block at **0.5× the scroll velocity** (parallax factor), clamped so the hero never scrolls fully off-screen until the content column reaches its natural top.
   - **Photo card:** `AsyncImage` (Coil), `fillMaxWidth`, initial height `300.dp`, `contentScale = Crop`. Clips to a `RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)`.
   - **Audio card:** Sentiment colour block, initial height `220.dp`, centred play/pause `IconButton` (`56.dp`) + duration label. Reuse audio player logic from Task 52. Block clips to same bottom-rounded shape.
   - Content column (text, date, emotion, audio pill) sits in a `LazyColumn` beneath the hero, with `16.dp` horizontal padding and `20.dp` top padding inside the first item.
   - Memory text is rendered **uncapped** (no `maxLines` limit) in `BodyLarge`.
 
-- [ ] **Task 57: Sentiment Gradient Background + Typography Hero (Text-Only Cards).**
+- [x] **Task 57: Sentiment Gradient Background + Typography Hero (Text-Only Cards).**
   - **Background (all card types):** Draw a full-screen `Box` with `background(Brush.verticalGradient([sentimentColor.copy(0.18f), sentimentColor.copy(0.06f), appBackground]))` as the lowest layer behind the scroll content.
   - **Text-only hero:** No parallax block. Instead, render the full memory text in `DisplaySmall` (or `HeadlineLarge`) style using `TextStyle(brush = Brush.linearGradient(colors = listOf(Color.Black, sentimentColor), start = Offset(0f, 0f), end = Offset(0f, Float.POSITIVE_INFINITY)))` — black at the top, sentiment colour at the bottom.
   - Text sits in the upper portion of the screen with generous vertical padding (`top = 72.dp` to clear the app bar, `horizontal = 24.dp`).
   - Date chip and emotion tag appear below the text body with `top = 24.dp` spacing.
   - No parallax scroll connection needed for text-only; standard `LazyColumn` or `Column` with `verticalScroll`.
 
-- [ ] **Task 58: Swipe-Left on Card → CaptureScreen (Edit Mode).**
+- [x] **Task 58: Swipe-Left on Card → CaptureScreen (Edit Mode).**
   - In `IndexScreen`, wrap each card with a `SwipeToDismiss` (or custom `Modifier.pointerInput` horizontal drag detector) that detects a leftward swipe exceeding a threshold of `72.dp`.
   - On confirmed left swipe: navigate to `"capture/${memory.id}"` (edit mode).
   - Visual feedback during swipe: reveal a tinted edit-icon background behind the card (sentiment colour at `alpha = 0.15f`) that scales in as the card slides left; snap back with spring animation if the threshold is not met.
   - Swipe-right on the same card: no action (guard against accidental triggers).
+
+---
+
+## Phase A: Smarter Sentiment + Index Filters
+
+### Goal
+Replace keyword-based emotion detection with a free on-device/API model, and make the `IndexScreen` feel like a real diary with a timeline layout and filterable views.
+
+- [ ] **Task 59: DB Migration 2→3 — Expanded Schema.**
+  - Add `Migration(2, 3)` to `AppDatabase.kt` with the following `ALTER TABLE` statements on the `memories` table:
+    - `emotionIntensity REAL` — 0.0–1.0 confidence score from the sentiment model.
+    - `secondaryEmotionalTone TEXT` — second-highest emotion label (nullable).
+    - `isBookmarked INTEGER NOT NULL DEFAULT 0` — boolean flag.
+    - `bookmarkedAt INTEGER` — epoch ms timestamp, nullable.
+    - `stickers TEXT` — JSON-encoded `List<String>` of sticker codes, nullable.
+    - `entryType TEXT` — `"MEMORY"` (default) or `"LETTER"`.
+    - `sealedUntil INTEGER` — epoch ms, nullable. Letters only.
+    - `isRevealed INTEGER NOT NULL DEFAULT 0` — boolean. Letters only.
+  - Bump `AppDatabase` version from `2` to `3`. Add new fields to `Memory` entity with `@ColumnInfo` defaults matching the migration.
+  - Update `MemoryDao` and `MemoryRepository` with any new query methods needed downstream.
+
+- [ ] **Task 60: HuggingFace Inference API — Sentiment Analysis.**
+  - Add `OkHttp` + `kotlinx.serialization` (or Gson) dependencies to `build.gradle.kts` if not present.
+  - Create `util/SentimentAnalyzer.kt`: a suspend function `analyze(text: String): SentimentResult` that POSTs to the HuggingFace Inference API endpoint for `j-hartmann/emotion-english-distilroberta-base`.
+  - Model outputs 7 labels (`joy`, `sadness`, `fear`, `anger`, `surprise`, `disgust`, `neutral`); map to app tones: `joy→HAPPY`, `sadness→SAD`, `fear→ANXIOUS`, `anger→ANXIOUS`, `surprise→EXCITED`, `disgust→SAD`, `neutral→NEUTRAL`.
+  - Store top-1 label as `emotionalTone`, top-1 score as `emotionIntensity`, top-2 label as `secondaryEmotionalTone`.
+  - **Fallback**: if the API call fails (no network, rate-limit, etc.), fall back to the existing keyword-based `EmotionDetector.kt`. Log the fallback with `android.util.Log.w`.
+  - API key stored in `local.properties` as `HUGGINGFACE_API_KEY`; read at build time via `BuildConfig`. Never commit the key.
+  - Call `analyze()` inside `CaptureViewModel.saveMemory()` before persisting, replacing the current `EmotionDetector` call.
+
+- [ ] **Task 61: IndexScreen — Timeline Layout.**
+  - Replace the bento `LazyVerticalStaggeredGrid` in `IndexScreen` with a `LazyColumn` timeline layout.
+  - Layout per date group:
+    - **Date header**: full-width label (e.g. `"March 29"`) in `labelLarge`, `secondary` colour, with a hairline divider spanning the full width.
+    - **Memory row**: each memory renders as a compact horizontal row — emotion-coloured circular node (12dp) on the left connected to the vertical timeline line, followed by a single-line excerpt (first 60 chars), date/time chip, and emotion tag pill on the right.
+  - **Vertical timeline line**: a 2dp wide line in `secondary.copy(alpha = 0.15f)` that runs continuously through all rows inside a date group; the line is drawn behind the nodes using a `Box` with `drawBehind`.
+  - Tapping any row navigates to `MemoryDetailScreen` (same as before).
+  - Remove the old bento grid and header `Row` — the global TopAppBar from `AppNavigation` already provides the screen title and back button.
+  - Keep existing long-press edit/delete behavior on each row.
+
+- [ ] **Task 62: IndexScreen — Emotion Filter Chips.**
+  - Add a horizontally-scrollable `LazyRow` of `FilterChip`s pinned directly below the `TopAppBar` (inside the screen's content area, above the timeline list).
+  - Chips: **All**, **Happy**, **Sad**, **Anxious**, **Calm**, **Excited**, **Neutral**, **Bookmarked**.
+  - Active chip: filled with the corresponding emotion colour (or `primary` for All/Bookmarked), white label; inactive: outlined with `secondary.copy(alpha = 0.4f)` border.
+  - Selecting a chip filters the timeline list to only show memories with that `emotionalTone` (or `isBookmarked == true` for Bookmarked). "All" clears the filter.
+  - Filter state is local (`remember { mutableStateOf("ALL") }`) — not persisted across navigation.
+  - Chip row has `8.dp` horizontal padding, `8.dp` top padding, `4.dp` bottom padding, and a soft bottom shadow (`appleShadow(2.dp)`) on the row container to visually separate it from the list.
+
+---
+
+## Phase B: Bookmarks + Diary Collections
+
+### Goal
+Let users star memories for quick retrieval, and group memories into named collections (like folders).
+
+- [ ] **Task 63: Bookmark — Long-Press Dialog Option.**
+  - In `IndexScreen` and `DiaryScreen`, extend the existing long-press dialog (currently Edit / Delete) with a third option: **"Bookmark"** (or **"Remove bookmark"** if already bookmarked).
+  - Tapping Bookmark sets `isBookmarked = true` and `bookmarkedAt = System.currentTimeMillis()` via a new `MemoryRepository.setBookmark(id, value)` suspend function.
+  - Show a small filled-star icon (`Icons.Default.Star`, emotion colour tint) as an overlay badge on the top-right corner of bookmarked cards in both `BentoMemoryCard` and `IndexMemoryRow`.
+  - Bookmarked memories appear first in the "Bookmarked" filter chip view (Task 62), sorted by `bookmarkedAt` descending.
+
+- [ ] **Task 64: Diary Collections — Data Layer.**
+  - Create a new Room entity `DiaryCollection` in `data/model/`: fields `id: String` (UUID), `name: String`, `colorHex: String`, `createdAt: Long`.
+  - Create a junction entity `MemoryCollectionCrossRef`: `memoryId: String`, `collectionId: String` (composite primary key).
+  - Add `DiaryCollectionDao` with: `insertCollection`, `deleteCollection`, `renameCollection`, `getAll(): Flow<List<DiaryCollection>>`, `addMemoryToCollection`, `removeMemoryFromCollection`, `getMemoriesForCollection(collectionId): Flow<List<Memory>>`.
+  - Register both entities in `AppDatabase` and bump to version **4** with a migration that creates the two new tables (no changes to existing tables).
+  - Add `DiaryCollectionRepository` wrapping the DAO. Wire it up in `AppNavigation` alongside the existing `MemoryRepository`.
+
+- [ ] **Task 65: Diary Collections — UI (Create & Assign).**
+  - Add a **"Collections"** entry point: a horizontal scrollable strip of collection pills near the top of `DiaryScreen` (above the memory list, below any date header). Each pill shows the collection name and its assigned colour dot. A `+` pill at the end opens a "New Collection" bottom sheet.
+  - **New Collection bottom sheet**: text field for name, a row of 8 preset colour swatches (matching emotion palette). "Create" button saves via `DiaryCollectionRepository`.
+  - **Assign from long-press dialog**: add **"Add to collection →"** option that opens a secondary bottom sheet listing existing collections; tapping one calls `addMemoryToCollection`.
+  - Tapping a collection pill in `DiaryScreen` navigates to a filtered view (same screen, filter by collection, top bar title = collection name).
+
+---
+
+## Phase C: Delight & Reflection Features
+
+### Goal
+Surface meaningful moments proactively: a daily quote, a happy memory reminder, and expressive mood stickers.
+
+- [ ] **Task 66: Daily Quote Bottom Sheet.**
+  - On `DiaryScreen` first composition each calendar day, show a `ModalBottomSheet` with an inspirational quote.
+  - Quotes: a static curated list of 30 entries embedded in the app (`util/Quotes.kt`), selected by `dayOfYear % quotes.size`.
+  - Sheet layout: quote text in `headlineMedium` (Trocchi), attribution in `labelSmall` secondary, a dismiss `TextButton` ("Continue to my diary").
+  - **Once-per-day gate**: store the last-shown date in `SharedPreferences` (`diary_prefs` → `last_quote_date`). Only show if today's date differs.
+  - Sheet uses `skipPartiallyExpanded = true`; background scrim at `0.4f` alpha.
+
+- [ ] **Task 67: Happy Memory Nudge.**
+  - Once per app session (app open → close), if the user has at least one memory with `emotionalTone == "HAPPY"`, show a nudge card as a non-blocking `Snackbar`-style overlay at the top of `DiaryScreen`.
+  - Nudge card: a warm rounded pill (`emotionColor("HAPPY").copy(alpha = 0.15f)` background, 12dp corners) showing: ✨ icon + `"Remember this moment?"` + one-line excerpt from a random HAPPY memory. Tapping the card navigates to that memory's `MemoryDetailScreen`.
+  - **Once-per-session gate**: track with a `remember { mutableStateOf(false) }` flag at the `AppNavigation` level, passed down via `CompositionLocal` or as a callback.
+  - Nudge auto-dismisses after 5 seconds via `LaunchedEffect` + `delay(5000)`.
+
+- [ ] **Task 68: Mood Stickers.**
+  - Add a sticker picker to `CaptureScreen`: a small sticker icon button in the capture toolbar row (alongside the mic and photo buttons).
+  - Tapping opens a compact horizontal sticker tray (16 stickers: emoji characters covering moods — e.g. ☀️ 🌧️ 🌊 🔥 🌸 🍂 ⭐ 🌙 🎵 📚 🏃 🧘 🤍 💛 🫧 🌿).
+  - Selected stickers appear as a small tag row below the text input in `CaptureScreen` and as an overlay badge strip on the memory card in `DiaryScreen` and `IndexScreen`.
+  - Stored as a JSON array of emoji strings in the `stickers` column (Task 59). Max 3 stickers per memory.
+  - Sticker tray is a `LazyRow` of tappable emoji `Text` composables in a `Box` with a frosted-glass style background (`background.copy(alpha = 0.92f)` + `appleShadow`).
+
+---
+
+## Phase D: Letter to Future Self
+
+### Goal
+Let users write sealed diary entries that lock until a chosen future date, then reveal with a special animation.
+
+- [ ] **Task 69: Letter Entry Type — Capture UI.**
+  - Add a **"Write a letter to future me"** option to the `DiaryScreen` capture bottom sheet, displayed as a second row below the existing `"What's on your mind?"` zone.
+  - Tapping navigates to `CaptureScreen` with `action = "letter"`.
+  - In `CaptureScreen`, when `action == "letter"`:
+    - Title changes to `"Dear future me,"`.
+    - A date picker row appears below the text input: `"Seal until: [date]"` — tapping opens a `DatePickerDialog`; minimum date is tomorrow.
+    - On save, sets `entryType = "LETTER"` and `sealedUntil = selectedDateMs` on the `Memory`.
+  - Saving a letter is otherwise identical to saving a normal memory (same `CaptureViewModel.saveMemory()` path).
+
+- [ ] **Task 70: Sealed Letter Cards.**
+  - In `DiaryScreen` and `IndexScreen`, letters with `sealedUntil > now` display a distinct locked-letter card style:
+    - Semi-transparent frosted appearance: card background `secondary.copy(alpha = 0.08f)` with a dashed border (`secondary.copy(alpha = 0.3f)`).
+    - Centered lock icon (`Icons.Default.Lock`, 24dp) and label `"Sealed until [date]"` — no text content preview.
+    - Tapping a sealed letter shows a `SnackBar`: `"This letter opens on [date]."` — does NOT navigate to detail.
+  - Letters where `sealedUntil ≤ now && isRevealed == false` display an **"Open your letter"** banner on the card (warm gradient strip across the bottom, `"Open ✦"`).
+
+- [ ] **Task 71: Letter Reveal Animation.**
+  - Tapping an unrevealed ready letter (`sealedUntil ≤ now && isRevealed == false`) navigates to `MemoryDetailScreen` as normal.
+  - `MemoryDetailScreen` detects `entryType == "LETTER" && isRevealed == false` and plays a one-shot reveal sequence before showing content:
+    - 0–300ms: screen fades in from white.
+    - 300–700ms: a `Canvas`-drawn envelope outline (simple path: rectangular body + triangle flap) scales from center, stroke animates from `0f` to full width.
+    - 700–1000ms: envelope flap rotates open (`rotationX` 0→-90° on the flap path).
+    - 1000ms+: content fades in normally; `isRevealed` is set to `true` via repository call.
+  - After the first open, the letter renders identically to a normal `MemoryDetailScreen` with no special intro.
+
+---
+
+## Phase E: Opening Ritual
+
+### Goal
+Greet the user with a moment of intention each time they open the app — a brief full-screen overlay that sets a reflective tone before entering the diary.
+
+- [ ] **Task 72: Opening Ritual — Trigger & Container.**
+  - Show the ritual overlay once per app session: track with a session-scoped `remember { mutableStateOf(false) }` at `AppNavigation` level; set to `true` after first display.
+  - The overlay renders as a full-screen `AnimatedVisibility` `Box` above the `NavHost` content (inside the outer `Scaffold`'s content area), using `fadeIn(tween(400))` enter and `fadeOut(tween(300))` exit.
+  - Background: `Brush.radialGradient` from `primary.copy(alpha = 0.12f)` at center to `background` at edges.
+  - Auto-dismiss after **4 seconds** via `LaunchedEffect` + `delay(4000)`. User can also tap anywhere to dismiss.
+  - After dismiss, the overlay is gone for the rest of the session; `NavHost` becomes fully interactive.
+
+- [ ] **Task 73: Opening Ritual — 4 Greeting Variants.**
+  - Randomly pick one of 4 variants each session (`Random.nextInt(4)`, seeded by session start time):
+  - **Variant 1 — Morning Affirmation**: a short affirmation sentence from a static list of 10 (e.g. `"Today is yours to shape."`). Renders in `displaySmall` Trocchi, centre-aligned, with a soft warm colour gradient brush (same brand gradient).
+  - **Variant 2 — Yesterday's Memory**: shows the most recent memory's first sentence as a quote (`"Yesterday you wrote…"` prefix in `labelMedium`, quote in `headlineMedium`). Falls back to Variant 1 if no memories exist.
+  - **Variant 3 — Streak Counter**: counts consecutive days with at least one memory entry. Shows `"🔥 N day streak"` in `displaySmall`. Falls back to Variant 1 if streak < 2.
+  - **Variant 4 — Mood Check-in Prompt**: a single question (`"How are you arriving today?"`) with 5 large emoji tap buttons (😌 😊 😔 😤 😴). Tapping an emoji dismisses the overlay and pre-selects that mood in `CaptureScreen` if the user starts a new entry within 60 seconds (passed via a `StateFlow` in a simple session-scoped `ViewModel`).
+  - All variants share the same container from Task 72; only the inner content composable changes.

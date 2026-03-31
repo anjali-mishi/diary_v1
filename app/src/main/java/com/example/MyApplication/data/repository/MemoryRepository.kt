@@ -35,4 +35,15 @@ class MemoryRepository(private val memoryDao: MemoryDao) {
         memoryDao.deleteMemory(memory)
         Log.d(TAG, "delete: done id=${memory.id}")
     }
+
+    fun setBookmark(id: String, bookmarked: Boolean) {
+        val memory = memoryDao.getMemoryById(id) ?: return
+        val updated = memory.copy(
+            isBookmarked = bookmarked,
+            bookmarkedAt = if (bookmarked) System.currentTimeMillis() else null,
+            updatedAt = System.currentTimeMillis()
+        )
+        Log.d(TAG, "setBookmark: id=$id bookmarked=$bookmarked")
+        memoryDao.updateMemory(updated)
+    }
 }

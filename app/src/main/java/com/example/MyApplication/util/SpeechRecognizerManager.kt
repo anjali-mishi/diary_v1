@@ -35,8 +35,8 @@ class SpeechRecognizerManager(private val context: Context) {
                 override fun onBeginningOfSpeech() {}
                 override fun onRmsChanged(rmsdB: Float) {}
                 override fun onBufferReceived(buffer: ByteArray?) {}
-                override fun onEndOfSpeech() { onEndOfSpeech() }
-                override fun onError(error: Int) { onError(error) }
+                override fun onEndOfSpeech() { this@SpeechRecognizerManager.onEndOfSpeech() }
+                override fun onError(error: Int) { this@SpeechRecognizerManager.onError(error) }
                 override fun onResults(results: Bundle?) {
                     val text = results
                         ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)

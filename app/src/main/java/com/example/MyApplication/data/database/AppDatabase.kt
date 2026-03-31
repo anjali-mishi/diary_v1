@@ -18,7 +18,20 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
-@Database(entities = [Memory::class], version = 2, exportSchema = false)
+private val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE memories ADD COLUMN emotionIntensity REAL DEFAULT NULL")
+        db.execSQL("ALTER TABLE memories ADD COLUMN secondaryEmotionalTone TEXT DEFAULT NULL")
+        db.execSQL("ALTER TABLE memories ADD COLUMN isBookmarked INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE memories ADD COLUMN bookmarkedAt INTEGER DEFAULT NULL")
+        db.execSQL("ALTER TABLE memories ADD COLUMN stickers TEXT DEFAULT NULL")
+        db.execSQL("ALTER TABLE memories ADD COLUMN entryType TEXT NOT NULL DEFAULT 'MEMORY'")
+        db.execSQL("ALTER TABLE memories ADD COLUMN sealedUntil INTEGER DEFAULT NULL")
+        db.execSQL("ALTER TABLE memories ADD COLUMN isRevealed INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+@Database(entities = [Memory::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun memoryDao(): MemoryDao
 
@@ -33,7 +46,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "memory_database"
-                ).addMigrations(MIGRATION_1_2).build()
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
                 INSTANCE = instance
                 Log.i(TAG, "getDatabase: instance created")
                 instance
