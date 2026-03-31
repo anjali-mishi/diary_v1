@@ -94,6 +94,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
@@ -164,21 +165,16 @@ private val diaryBgImages = listOf(
 private var diarySessionBgCounter = 0
 
 /**
- * Overlays subtle ruled-paper horizontal lines on any composable.
- * Gives memory cards a handwritten diary-page feel.
+ * Overlays the paper grain texture image on any composable.
+ * Gives memory cards and the capture screen an authentic diary-page feel.
  */
-fun Modifier.paperTexture(): Modifier = this.drawWithContent {
-    drawContent()
-    val spacing = 22.dp.toPx()
-    val count = (size.height / spacing).toInt() + 1
-    for (i in 0..count) {
-        val y = i * spacing
-        drawLine(
-            color = Color(0xFF8B7355).copy(alpha = 0.07f),
-            start = Offset(16.dp.toPx(), y),
-            end = Offset(size.width - 16.dp.toPx(), y),
-            strokeWidth = 0.8.dp.toPx()
-        )
+fun Modifier.paperTexture(alpha: Float = 0.35f): Modifier = composed {
+    val painter = painterResource(R.drawable.paper_texture)
+    drawWithContent {
+        drawContent()
+        with(painter) {
+            draw(size = this@drawWithContent.size, alpha = alpha)
+        }
     }
 }
 
@@ -933,7 +929,8 @@ fun CaptureScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color(0xFFFEFCF7))
+            .paperTexture()
     ) {
         if (isRecording) {
             // ─── Recording Mode (Spotify-style full-screen) ────────────────────
@@ -1725,6 +1722,7 @@ fun BentoMemoryCard(
                 .appleShadow(cornerRadius = 16.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color(0xFFFEFCF7))
+                .paperTexture()
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
         ) {
             Column {
@@ -1738,7 +1736,7 @@ fun BentoMemoryCard(
                         .height(180.dp)
                 )
                 // Bottom: text + chips
-                Column(modifier = Modifier.paperTexture().padding(16.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     if (!memory.textContent.isNullOrBlank()) {
                         Text(
                             text = memory.textContent,
@@ -1800,6 +1798,7 @@ fun BentoMemoryCard(
                 .appleShadow(cornerRadius = 16.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color(0xFFFEFCF7))
+                .paperTexture()
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
         ) {
             Column {
@@ -1873,7 +1872,7 @@ fun BentoMemoryCard(
                     }
                 }
                 // Bottom: text + chips
-                Column(modifier = Modifier.paperTexture().padding(16.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     if (!memory.textContent.isNullOrBlank()) {
                         Text(
                             text = memory.textContent,
