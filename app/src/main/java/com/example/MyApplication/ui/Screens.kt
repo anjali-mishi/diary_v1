@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -104,6 +105,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -339,21 +342,30 @@ fun DiaryScreen(
 
         if (memories.isNotEmpty()) {
             val sorted = remember(memories) { memories.sortedByDescending { it.timestamp } }
-            LazyVerticalStaggeredGrid(
-                columns = StaggeredGridCells.Fixed(2),
+            LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
-                    start = 20.dp, end = 20.dp, top = 84.dp, bottom = (sheetHeight + 40.dp)
+                    start = 24.dp, end = 24.dp, top = 84.dp, bottom = (sheetHeight + 40.dp)
                 ),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalItemSpacing = 8.dp,
+                verticalArrangement = Arrangement.spacedBy(-60.dp),
+                reverseLayout = true,
             ) {
-                staggeredItems(sorted, key = { it.id }) { memory ->
-                    BentoMemoryCard(
-                        memory = memory,
-                        onClick = { onNavigateToDetail(memory.id) },
-                        onLongClick = { memoryToEditOrDelete = memory }
-                    )
+                itemsIndexed(sorted, key = { _, memory -> memory.id }) { index, memory ->
+                    // Earlier cards (lower index = newer) sit on top when reversed
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .zIndex((sorted.size - index).toFloat()),
+                        contentAlignment = if (index % 2 == 0) Alignment.CenterStart else Alignment.CenterEnd
+                    ) {
+                        BentoMemoryCard(
+                            memory = memory,
+                            cardIndex = index,
+                            onClick = { onNavigateToDetail(memory.id) },
+                            onLongClick = { memoryToEditOrDelete = memory },
+                            modifier = Modifier.fillMaxWidth(0.7f)
+                        )
+                    }
                 }
             }
         }
@@ -1740,6 +1752,7 @@ fun IndexScreen(
 @Composable
 fun BentoMemoryCard(
     memory: Memory,
+    cardIndex: Int = 0,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -1748,6 +1761,18 @@ fun BentoMemoryCard(
     val emotionColor = emotionColor(memory.emotionalTone)
     val dateLabel = remember(memory.timestamp) {
         SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(memory.timestamp))
+    }
+    // Alternating tilt: even index tilts left, odd index tilts right
+    val tiltAngle = if (cardIndex % 2 == 0) -3f else 3f
+
+    // Extract headline + remaining body once, shared across all three card layouts
+    val (cardHeadline, cardBody) = remember(memory.textContent, memory.title) {
+        val src = memory.textContent?.takeIf { it.isNotBlank() } ?: memory.title
+        val idx = src.indexOfFirst { it == '.' || it == '!' || it == '?' || it == '\n' }
+        if (idx in 1 until src.length)
+            src.substring(0, idx + 1).trim() to src.substring(idx + 1).trim()
+        else
+            src.trim() to ""
     }
 
     // Shared-element bounds — active when inside a SharedTransitionLayout nav destination
@@ -1761,7 +1786,7 @@ fun BentoMemoryCard(
                 enter = fadeIn(animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)),
                 exit = fadeOut(animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)),
                 boundsTransform = { _, _ -> tween(durationMillis = 500, easing = FastOutSlowInEasing) },
-                clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(16.dp))
+                clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(20.dp))
             )
         }
     } else Modifier
@@ -1771,9 +1796,12 @@ fun BentoMemoryCard(
         val audioDuration = remember(memory.audioFilePath) { audioFileDuration(memory.audioFilePath) }
         Box(
             modifier = modifier
+                .fillMaxWidth()
+                .height(300.dp)
+                .graphicsLayer { rotationZ = tiltAngle }
                 .then(cardSharedModifier)
-                .appleShadow(cornerRadius = 16.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .appleShadow(cornerRadius = 20.dp)
+                .clip(RoundedCornerShape(20.dp))
                 .background(Color(0xFFFEFCF7))
                 .paperTexture()
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
@@ -1786,20 +1814,31 @@ fun BentoMemoryCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp)
+                        .height(160.dp)
                 )
-                // Bottom: text + chips
-                Column(modifier = Modifier.padding(16.dp)) {
-                    if (!memory.textContent.isNullOrBlank()) {
+                // Bottom: headline + body + date
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text(
+                        text = cardHeadline,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (cardBody.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = memory.textContent,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
+                            text = cardBody,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -1809,7 +1848,6 @@ fun BentoMemoryCard(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
                         )
-                        // Audio pill (if photo + audio)
                         if (memory.audioFilePath != null && audioDuration != null) {
                             Row(
                                 modifier = Modifier
@@ -1847,9 +1885,12 @@ fun BentoMemoryCard(
         }
         Box(
             modifier = modifier
+                .fillMaxWidth()
+                .height(300.dp)
+                .graphicsLayer { rotationZ = tiltAngle }
                 .then(cardSharedModifier)
-                .appleShadow(cornerRadius = 16.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .appleShadow(cornerRadius = 20.dp)
+                .clip(RoundedCornerShape(20.dp))
                 .background(Color(0xFFFEFCF7))
                 .paperTexture()
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
@@ -1857,14 +1898,29 @@ fun BentoMemoryCard(
             Column {
                 // Top: waveform visualisation with overlaid play/pause
                 val waveBarCount = 30
-                val waveBarHeights = remember(memory.audioFilePath) {
-                    val rng = Random(memory.audioFilePath.hashCode())
-                    List(waveBarCount) { 0.15f + 0.85f * rng.nextFloat() }
+                val waveBarHeights = remember(memory.waveformData, memory.audioFilePath) {
+                    val parsed = memory.waveformData
+                        ?.removeSurrounding("[", "]")
+                        ?.split(",")
+                        ?.mapNotNull { it.trim().toFloatOrNull() }
+                        ?.takeIf { it.isNotEmpty() }
+                    parsed?.let { data ->
+                        // Resample stored waveform to exactly waveBarCount bars
+                        List(waveBarCount) { i ->
+                            val idx = (i.toFloat() / waveBarCount * data.size)
+                                .toInt().coerceAtMost(data.size - 1)
+                            data[idx].coerceIn(0.15f, 1f)
+                        }
+                    } ?: run {
+                        // Fallback for older entries without stored waveform data
+                        val rng = Random(memory.audioFilePath.hashCode())
+                        List(waveBarCount) { 0.15f + 0.85f * rng.nextFloat() }
+                    }
                 }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(110.dp)
+                        .height(160.dp)
                         .background(emotionColor.copy(alpha = 0.85f))
                         .clickable {
                             if (isPlaying) {
@@ -1924,28 +1980,34 @@ fun BentoMemoryCard(
                         )
                     }
                 }
-                // Bottom: text + chips
-                Column(modifier = Modifier.padding(16.dp)) {
-                    if (!memory.textContent.isNullOrBlank()) {
+                // Bottom: headline + body + date
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text(
+                        text = cardHeadline,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (cardBody.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = memory.textContent,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
+                            text = cardBody,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
                     }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = dateLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = dateLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
+                    )
                 }
             }
         }
@@ -1963,49 +2025,42 @@ fun BentoMemoryCard(
         val gradientBrush = remember(gradientColors) {
             Brush.linearGradient(colors = gradientColors)
         }
-        val source = if (!memory.textContent.isNullOrBlank()) memory.textContent else memory.title
-        val (headline, remaining) = remember(source) {
-            val idx = source.indexOfFirst { it == '.' || it == '!' || it == '?' || it == '\n' }
-            if (idx in 1 until source.length) {
-                source.substring(0, idx + 1).trim() to source.substring(idx + 1).trim()
-            } else {
-                source.trim() to ""
-            }
-        }
         Box(
             modifier = modifier
-                .then(cardSharedModifier)
                 .fillMaxWidth()
-                .heightIn(min = 110.dp)
-                .appleShadow(cornerRadius = 16.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .height(300.dp)
+                .graphicsLayer { rotationZ = tiltAngle }
+                .then(cardSharedModifier)
+                .appleShadow(cornerRadius = 20.dp)
+                .clip(RoundedCornerShape(20.dp))
                 .background(Color(0xFFFEFCF7))
                 .background(gradientBrush)
                 .paperTexture()
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-                .padding(16.dp)
+                .padding(20.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = headline,
+                    text = cardHeadline,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
                     ),
                     color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 2,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (remaining.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                if (cardBody.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = remaining,
-                        style = MaterialTheme.typography.bodySmall,
+                        text = cardBody,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                        maxLines = 3,
+                        maxLines = 5,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = dateLabel,
                     style = MaterialTheme.typography.labelSmall,
