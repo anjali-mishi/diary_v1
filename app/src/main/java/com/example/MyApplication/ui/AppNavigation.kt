@@ -95,8 +95,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val isIndex  = currentRoute?.startsWith(Screen.Index.name)  == true
-    val isDetail = currentRoute?.startsWith(Screen.Detail.name) == true
+    val isIndex = currentRoute?.startsWith(Screen.Index.name) == true
 
     // Scroll-reactive TopAppBar: screens write true when scrolled, reset on route change
     val topBarScrolled = remember { mutableStateOf(false) }
@@ -113,23 +112,20 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         label = "topBarBg"
     )
 
-    val detailMemoryId = if (isDetail) navBackStackEntry?.arguments?.getString("memoryId") else null
-
+    // The Detail screen owns its own floating back/edit buttons so that no global TopAppBar
+    // is shown for it. This keeps innerPadding.top = 0 on both Diary and Detail routes,
+    // eliminating the layout shift that caused the closing jerk.
     Scaffold(
         modifier = modifier,
-        // TopAppBar lives here — the Scaffold guarantees it draws ABOVE all
-        // NavHost content in every state, including during shared-element transitions.
         topBar = {
-            if (isIndex || isDetail) {
+            if (isIndex) {
                 TopAppBar(
                     title = {
-                        if (isIndex) {
-                            Text(
-                                text = "My Diaries",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                        }
+                        Text(
+                            text = "My Diaries",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
                     },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
@@ -138,20 +134,6 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                                 contentDescription = "Back",
                                 tint = MaterialTheme.colorScheme.onBackground
                             )
-                        }
-                    },
-                    actions = {
-                        if (isDetail && detailMemoryId != null) {
-                            IconButton(onClick = {
-                                Log.d(TAG, "GlobalNav → Capture (edit memoryId=$detailMemoryId)")
-                                navController.navigate("${Screen.Capture.name}?memoryId=$detailMemoryId")
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit memory",
-                                    tint = MaterialTheme.colorScheme.onBackground
-                                )
-                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = topBarBg)
@@ -173,11 +155,10 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 ) {
                         composable(
                             route = Screen.Diary.name,
-                            // Screen appears immediately (0.99→1.0 is imperceptible) but the scope's
-                            // transition stays active for 500ms so the sharedBounds spring can complete.
-                            // Without this, popEnterTransition defaults to fadeIn(700ms) which makes all
-                            // text and cards visibly fade in after closing a memory detail page.
-                            popEnterTransition = { fadeIn(initialAlpha = 1f, animationSpec = tween(700)) }
+                            // Screen appears immediately (initialAlpha = 1f) but the scope's
+                            // transition stays active for 600ms so the sharedBounds tweens
+                            // (500ms bounds + 400ms fade) complete with headroom.
+                            popEnterTransition = { fadeIn(initialAlpha = 1f, animationSpec = tween(600)) }
                         ) {
                             Log.d(TAG, "Navigated to: Diary")
                             CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
@@ -265,11 +246,13 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                             arguments = listOf(
                                 navArgument("memoryId") { type = NavType.StringType }
                             ),
-                            // Let sharedBounds drive the transition; suppress nav-level fades
+                            // sharedBounds drives geometry; nav-level enter/exit stay None
+                            // except popExitTransition which fades the gradient Box (outside
+                            // sharedBounds) smoothly instead of snapping it on frame 1.
                             enterTransition    = { EnterTransition.None },
                             exitTransition     = { ExitTransition.None },
                             popEnterTransition = { EnterTransition.None },
-                            popExitTransition  = { ExitTransition.None }
+                            popExitTransition  = { fadeOut(animationSpec = tween(400)) }
                         ) { backStackEntry ->
                             val memoryId = backStackEntry.arguments?.getString("memoryId")
                                 ?: return@composable
@@ -277,7 +260,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                             CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
                                 MemoryDetailScreen(
                                     memoryId = memoryId,
-                                    viewModel = diaryViewModel
+                                    viewModel = diaryViewModel,
+                                    onNavigateBack = {
+                                        Log.d(TAG, "DetailScreen → back")
+                                        navController.popBackStack()
+                                    },
+                                    onNavigateToEdit = {
+                                        Log.d(TAG, "DetailScreen → Capture (edit memoryId=$memoryId)")
+                                        navController.navigate("${Screen.Capture.name}?memoryId=$memoryId")
+                                    }
                                 )
                             }
                         }

@@ -70,16 +70,26 @@ We have successfully completed **Phases 1 through 9**, fully realizing the funct
 
 ---
 
+---
+
+### 🪟 Memory Detail Screen Polish (Post Phase 14)
+
+*   **Floating Nav Button Restyle:** Back and edit buttons on `MemoryDetailScreen` upgraded from translucent dark circles to white circles with `appleShadow()` drop shadow and near-black (`#1C1C1E`) icons — consistent with the app's premium light-surface aesthetic.
+*   **Text-Only Content Offset:** The text hero `LazyColumn` on text-only memories now receives `statusBarsPadding() + padding(top = 56.dp)`, pushing body text cleanly below the floating nav buttons instead of rendering behind them.
+*   **Shared Transition Abrupt Fade Fix:** Diagnosed and eliminated a recurring abrupt cut at the end of the card→detail close animation caused by four compounding issues: (1) spring settling time (~630ms) too close to the nav scope deadline (700ms), (2) asymmetric exit specs across both sharedBounds sides, (3) overlapping AnimatedVisibilityScope state when the user re-opened a card before the 700ms scope expired, (4) gradient background Box disappearing instantly on frame 1 of every close. Fixed by replacing all springs with deterministic tweens (400ms fade / 500ms bounds, `FastOutSlowInEasing`), tightening the DiaryScreen `popEnterTransition` scope to 600ms, and adding `popExitTransition = fadeOut(tween(400))` to the Detail route so the gradient fades gracefully instead of snapping.
+
+---
+
 ## 3. The Path Forward (Current Objective)
 
-**Phase 12 is complete.** All planned visual polish and branding tasks (44–48) have shipped. We are now preparing to scale the app into its next phase.
+**Phases 1–14 and all post-phase polish are complete.** The core product — capture, playback, bento grid, memory detail with shared transitions, sentiment analysis — is fully functional and visually refined.
 
-### Remaining Phase 12 task:
-*   **Task 49 — White Chip Style:** Give suggestion and predictor chips a solid white (`#FFFFFF`) background with a low Apple-style soft shadow. No border/outline.
-
-### Next Phase — Scaling:
-The core capture/playback pipeline, brand identity (Trocchi + orange→pink gradient), and UX polish are all solid. The next phase will focus on expanding the app's feature surface — search, filtering, richer memory views, and deeper emotional context.
+### Next Phase — Smarter Sentiment + Index Filters (Phase A):
+*   Task 59: DB Migration 2→3 (expanded schema: emotion intensity, bookmarks, stickers, letters)
+*   Task 60: HuggingFace Inference API sentiment analysis (replaces keyword detector, with fallback)
+*   Task 61: IndexScreen timeline layout
+*   Task 62: Emotion filter chips
 
 > [!TIP]
 > **Developer Goal**
-> Task 49 is purely visual. All subsequent scaling work will involve new screens and data features — plan those in a new phase block in `task.md`.
+> Phase A unlocks richer emotional context across the app. Plan collections (Phase B) and sealed letters after Phase A ships.

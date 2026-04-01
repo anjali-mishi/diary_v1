@@ -4,10 +4,7 @@ package com.example.myapplication.ui
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -18,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,8 +26,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -67,6 +68,8 @@ import java.util.Locale
 fun MemoryDetailScreen(
     memoryId: String,
     viewModel: DiaryViewModel,
+    onNavigateBack: () -> Unit = {},
+    onNavigateToEdit: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // ── Data ───────────────────────────────────────────────────────────────
@@ -96,14 +99,9 @@ fun MemoryDetailScreen(
             Modifier.sharedBounds(
                 rememberSharedContentState(key = "card-$memoryId"),
                 animatedVisibilityScope = animatedVisibilityScope,
-                enter = fadeIn(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)),
-                // ExitTransition.None: detail content vanishes instantly on back-press.
-                // fadeOut(300ms) was rendering the Scaffold in the SharedTransitionLayout
-                // overlay above the home screen for 300ms, causing visible gradient bleed.
-                // The spring bounds animation still plays; BentoMemoryCard's enter=fadeIn
-                // materialises the card cleanly as the bounds contract.
-                exit = ExitTransition.None,
-                boundsTransform = { _, _ -> spring(stiffness = Spring.StiffnessMediumLow) }
+                enter = fadeIn(animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)),
+                exit = fadeOut(animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)),
+                boundsTransform = { _, _ -> tween(durationMillis = 500, easing = FastOutSlowInEasing) }
             )
         }
     } else Modifier
@@ -117,16 +115,8 @@ fun MemoryDetailScreen(
     val hasHero = heroHeight > 0.dp
     val heroHeightPx = with(LocalDensity.current) { heroHeight.toPx() }
 
-    // ── Scroll-reactive TopAppBar ──────────────────────────────────────────
-    val topBarScrolled = LocalTopBarScrolled.current
+    // ── Scroll state ───────────────────────────────────────────────────────
     val listState = rememberLazyListState()
-    LaunchedEffect(listState) {
-        androidx.compose.runtime.snapshotFlow {
-            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
-        }
-            .distinctUntilChanged()
-            .collect { scrolled -> topBarScrolled.value = scrolled }
-    }
 
     // ── Parallax (media cards) ─────────────────────────────────────────────
     val parallaxOffset by remember(heroHeightPx) {
@@ -240,15 +230,66 @@ fun MemoryDetailScreen(
                     }
                 } else {
                     // Text-only: typography hero, transparent bg, no parallax.
-                    // No top spacer needed — the outer Scaffold's innerPadding already
-                    // positions content below the TopAppBar.
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    // statusBarsPadding + button height (40dp) + row padding (8dp) push content
+                    // below the floating nav controls.
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .statusBarsPadding()
+                            .padding(top = 56.dp)
+                    ) {
                         item(key = "textHero") { TextOnlyHeroSection(memory, emotionColor) }
                     }
                 }
             }
         }
         } // end Scaffold
+
+        // ── Floating nav controls (back + edit) ────────────────────────────
+        // These sit OUTSIDE sharedBounds so they don't interfere with the
+        // spring geometry, and outside the Scaffold so they aren't pushed down
+        // by innerPadding. statusBarsPadding ensures they clear the status bar.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .appleShadow()
+                    .background(Color.White, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color(0xFF1C1C1E),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .appleShadow()
+                    .background(Color.White, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                IconButton(onClick = onNavigateToEdit) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit memory",
+                        tint = Color(0xFF1C1C1E),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
     } // end outer Box
 }
 

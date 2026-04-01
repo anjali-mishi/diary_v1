@@ -153,13 +153,47 @@ import java.util.Locale
 
 /** BG images for DiaryScreen, cycled round-robin once per session. */
 private val diaryBgImages = listOf(
-    R.drawable.bg_diary_1,
-    R.drawable.bg_diary_2,
-    R.drawable.bg_diary_3,
-    R.drawable.bg_diary_4,
-    R.drawable.bg_diary_5,
-    R.drawable.bg_diary_6,
+    R.drawable.bg_01,  //  0 dark  — sunset silhouette with birds
+    R.drawable.bg_02,  //  1 light — mountain lake reflection
+    R.drawable.bg_03,  //  2 light — beach golden hour
+    R.drawable.bg_04,  //  3 light — snowy forest path
+    R.drawable.bg_05,  //  4 dark  — pine trunks in mist
+    R.drawable.bg_06,  //  5 dark  — bluebell forest
+    R.drawable.bg_07,  //  6 dark  — nebula / deep space
+    R.drawable.bg_08,  //  7 light — forest & mountain vista
+    R.drawable.bg_09,  //  8 light — Mongolian steppe
+    R.drawable.bg_10,  //  9 dark  — cherry blossom at dusk
+    R.drawable.bg_11,  // 10 dark  — stormy snowy mountain
+    R.drawable.bg_12,  // 11 dark  — sunflower close-up, dark bg
+    R.drawable.bg_13,  // 12 dark  — amber sparkling water
+    R.drawable.bg_14,  // 13 light — aerial beach & jungle
+    R.drawable.bg_15,  // 14 dark  — shattered sea ice
+    R.drawable.bg_16,  // 15 dark  — palm leaf close-up
+    R.drawable.bg_17,  // 16 dark  — underwater wave
+    R.drawable.bg_18,  // 17 light — snowy Alps golden sunrise
+    R.drawable.bg_19,  // 18 dark  — ocean waves at sunset
+    R.drawable.bg_20,  // 19 dark  — northern lights
+    R.drawable.bg_21,  // 20 light — snow-covered mountain range
+    R.drawable.bg_22,  // 21 dark  — stormy sky with rainbow
+    R.drawable.bg_23,  // 22 dark  — sea turtle underwater
+    R.drawable.bg_24,  // 23 dark  — tulips, dark background
+    R.drawable.bg_25,  // 24 dark  — white blossoms, dark bg
+    R.drawable.bg_26,  // 25 light — Namib desert landscape
+    R.drawable.bg_27,  // 26 light — dead tree, desert sky
+    R.drawable.bg_28,  // 27 light — rocky cave looking out
+    R.drawable.bg_29,  // 28 dark  — misty forest
+    R.drawable.bg_30,  // 29 light — misty lake at sunrise
+    R.drawable.bg_31,  // 30 dark  — mountain sunset in rain
+    R.drawable.bg_32,  // 31 light — silhouette bright sky flare
+    R.drawable.bg_33,  // 32 dark  — rocky coast at sunset
+    R.drawable.bg_34,  // 33 dark  — agave plant
+    R.drawable.bg_35,  // 34 dark  — succulent close-up
+    R.drawable.bg_36,  // 35 light — beach dunes at sunset
+    R.drawable.bg_37,  // 36 light — dramatic sunset seascape
 )
+
+/** Indices of BG images that are visually dark — white logo used on these. */
+private val darkBgIndices = setOf(0, 4, 5, 6, 9, 10, 11, 12, 14, 15, 16, 18, 19, 21, 22, 23, 24, 28, 30, 32, 33, 34)
 
 /** Increments each time DiaryScreen is first created — drives round-robin BG selection. */
 private var diarySessionBgCounter = 0
@@ -324,25 +358,44 @@ fun DiaryScreen(
             }
         }
 
-        // Header — drawn on top of list/empty state
+        // Header scrim — fades from semi-opaque at top to transparent, ensures logo readability
+        val isDarkBg = bgIndex in darkBgIndices
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(76.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = if (isDarkBg)
+                            listOf(Color.Black.copy(alpha = 0.45f), Color.Transparent)
+                        else
+                            listOf(Color.White.copy(alpha = 0.80f), Color.Transparent)
+                    )
+                )
+        )
+
+        // Header — transparent, drawn on top of scrim
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 24.dp, vertical = 16.dp)
                 .align(Alignment.TopCenter),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Memories",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onBackground
+            Image(
+                painter = painterResource(
+                    if (isDarkBg) R.drawable.logo_white else R.drawable.logo_dark
+                ),
+                contentDescription = "Memory",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.height(36.dp)
             )
             Text(
                 text = "My Diaries",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.secondary,
+                color = if (isDarkBg) Color.White else MaterialTheme.colorScheme.secondary,
                 modifier = Modifier
                     .clickable { onNavigateToIndex() }
                     .padding(end = 4.dp)
@@ -1705,9 +1758,9 @@ fun BentoMemoryCard(
             Modifier.sharedBounds(
                 rememberSharedContentState(key = "card-${memory.id}"),
                 animatedVisibilityScope = animatedVisibilityScope,
-                enter = fadeIn(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)),
-                exit = fadeOut(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)),
-                boundsTransform = { _, _ -> spring(stiffness = Spring.StiffnessMediumLow) },
+                enter = fadeIn(animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)),
+                exit = fadeOut(animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)),
+                boundsTransform = { _, _ -> tween(durationMillis = 500, easing = FastOutSlowInEasing) },
                 clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(16.dp))
             )
         }

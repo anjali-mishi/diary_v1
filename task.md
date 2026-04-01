@@ -391,6 +391,23 @@ Text-only memory:
 
 ---
 
+## Phase 14 Post-Polish: Detail Screen UX
+
+- [x] **Task 58a: MemoryDetailScreen — Float Nav Buttons Restyled.**
+  - Back and edit buttons changed from translucent dark circles (`Color.Black.copy(alpha=0.18f)`, white icon) to white circles with `appleShadow()` and near-black (`Color(0xFF1C1C1E)`) icon tint.
+  - Consistent with the app's white-card + soft-shadow design language.
+
+- [x] **Task 58b: MemoryDetailScreen — Text-Only Content Offset.**
+  - Text-only `LazyColumn` now has `Modifier.statusBarsPadding().padding(top = 56.dp)` so body text starts below the floating nav buttons on all devices.
+
+- [x] **Task 58c: MemoryDetailScreen — Shared Transition Close Fix.**
+  - Replaced `spring(StiffnessMediumLow)` with `tween(500ms, FastOutSlowInEasing)` on `boundsTransform` for both card and detail `sharedBounds`.
+  - Replaced asymmetric exit fades (card tween(300) / detail spring) with symmetric `fadeOut(tween(400))` on both sides.
+  - Narrowed DiaryScreen `popEnterTransition` scope from 700ms → 600ms to prevent overlapping `AnimatedVisibilityScope` on repeat taps.
+  - Added `popExitTransition = fadeOut(tween(400))` on the Detail nav route so the gradient background fades out smoothly instead of snapping on frame 1.
+
+---
+
 ## Phase A: Smarter Sentiment + Index Filters
 
 ### Goal
