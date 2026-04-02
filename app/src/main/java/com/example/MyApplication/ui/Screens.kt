@@ -995,7 +995,6 @@ fun CaptureScreen(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFFEFCF7))
-            .paperTexture()
     ) {
         if (isRecording) {
             // ─── Recording Mode (Spotify-style full-screen) ────────────────────
