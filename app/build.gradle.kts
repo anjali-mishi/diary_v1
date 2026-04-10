@@ -72,4 +72,5 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("dev.chrisbanes.haze:haze:1.5.1")
 }

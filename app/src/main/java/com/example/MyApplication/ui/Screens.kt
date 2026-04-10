@@ -1,5 +1,10 @@
 package com.example.myapplication.ui
 
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeChild
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -271,6 +276,7 @@ fun DiaryScreen(
 
     // Pick one BG image per session, advancing round-robin on each new session
     val bgIndex = remember { diarySessionBgCounter++ % diaryBgImages.size }
+    val hazeState = remember { HazeState() }
 
     if (memoryToEditOrDelete != null) {
         androidx.compose.material3.AlertDialog(
@@ -308,7 +314,9 @@ fun DiaryScreen(
             painter = painterResource(diaryBgImages[bgIndex]),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .haze(hazeState)
         )
         // Dim scrim so cards and text remain readable
         Box(
@@ -343,7 +351,15 @@ fun DiaryScreen(
         if (memories.isNotEmpty()) {
             val sorted = remember(memories) { memories.sortedByDescending { it.timestamp } }
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .hazeChild(
+                        state = hazeState,
+                        style = HazeStyle(
+                            blurRadius = 12.dp,
+                            tint = HazeTint(Color.White.copy(alpha = 0.05f))
+                        )
+                    ),
                 contentPadding = PaddingValues(
                     start = 24.dp, end = 24.dp, top = 84.dp, bottom = (sheetHeight + 40.dp)
                 ),
