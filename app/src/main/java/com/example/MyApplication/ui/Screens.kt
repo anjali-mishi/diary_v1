@@ -1,10 +1,5 @@
 package com.example.myapplication.ui
 
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.haze
-import dev.chrisbanes.haze.hazeChild
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -108,6 +103,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.graphicsLayer
@@ -276,7 +272,6 @@ fun DiaryScreen(
 
     // Pick one BG image per session, advancing round-robin on each new session
     val bgIndex = remember { diarySessionBgCounter++ % diaryBgImages.size }
-    val hazeState = remember { HazeState() }
 
     if (memoryToEditOrDelete != null) {
         androidx.compose.material3.AlertDialog(
@@ -310,19 +305,34 @@ fun DiaryScreen(
         val sheetHeight = maxHeight * 0.15f
 
         // Full-screen background — one image per session, round-robin
+        // On API 31+ a real Gaussian blur is applied; lower APIs get the image as-is
         Image(
             painter = painterResource(diaryBgImages[bgIndex]),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxSize()
-                .haze(hazeState)
+                .then(
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        Modifier.graphicsLayer {
+                            renderEffect = android.graphics.RenderEffect
+                                .createBlurEffect(40f, 40f, android.graphics.Shader.TileMode.CLAMP)
+                                .asComposeRenderEffect()
+                        }
+                    } else Modifier
+                )
         )
-        // Dim scrim so cards and text remain readable
+        // Frosted scrim — white tint on API 31+ enhances the glass feel;
+        // on older devices it acts as the primary softening layer
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.22f))
+                .background(
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
+                        Color.White.copy(alpha = 0.15f)
+                    else
+                        Color.Black.copy(alpha = 0.30f)
+                )
         )
 
         // Empty state — centered in full screen, behind header and sheet
@@ -351,15 +361,7 @@ fun DiaryScreen(
         if (memories.isNotEmpty()) {
             val sorted = remember(memories) { memories.sortedByDescending { it.timestamp } }
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .hazeChild(
-                        state = hazeState,
-                        style = HazeStyle(
-                            blurRadius = 12.dp,
-                            tint = HazeTint(Color.White.copy(alpha = 0.05f))
-                        )
-                    ),
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     start = 24.dp, end = 24.dp, top = 84.dp, bottom = (sheetHeight + 40.dp)
                 ),
