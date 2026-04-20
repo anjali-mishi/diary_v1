@@ -117,6 +117,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
     // eliminating the layout shift that caused the closing jerk.
     Scaffold(
         modifier = modifier,
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             if (isIndex) {
                 TopAppBar(
