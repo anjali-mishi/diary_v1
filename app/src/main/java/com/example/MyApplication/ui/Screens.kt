@@ -395,8 +395,7 @@ fun DiaryScreen(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .statusBarsPadding()
-                .height(76.dp)
+                .height(140.dp)
                 .background(
                     Brush.verticalGradient(
                         colors = if (isDarkBg)
