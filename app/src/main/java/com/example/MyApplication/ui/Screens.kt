@@ -92,6 +92,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -1610,11 +1611,24 @@ fun IndexScreen(
         )
     }
 
-    // Group memories by formatted date, sorted newest first
+    // ── Dial state ────────────────────────────────────────────────────────
+    // Dial maps 0..1 → oldest..newest memory timestamp (or ±1 year if no memories)
+    val minTs = remember(memories) { memories.minOfOrNull { it.timestamp } ?: (System.currentTimeMillis() - 365L * 86_400_000) }
+    val maxTs = remember(memories) { memories.maxOfOrNull { it.timestamp } ?: System.currentTimeMillis() }
+    // Start centred on the most recent memory
+    var dialValue by remember { mutableStateOf(1f) }
+    val dialTs = remember(dialValue, minTs, maxTs) {
+        (minTs + (maxTs - minTs) * dialValue).toLong()
+    }
+    val dialDateLabel = remember(dialTs) {
+        SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date(dialTs))
+    }
+
+    // Group memories by formatted date, sorted by proximity to dialled timestamp (nearest first)
     val dateFormatter = remember { SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault()) }
-    val grouped = remember(memories) {
+    val grouped = remember(memories, dialTs) {
         memories
-            .sortedByDescending { it.timestamp }
+            .sortedBy { abs(it.timestamp - dialTs) }
             .groupBy { dateFormatter.format(Date(it.timestamp)) }
     }
 
@@ -1652,6 +1666,44 @@ fun IndexScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalItemSpacing = 8.dp,
             ) {
+                // ── Dial header ────────────────────────────────────────────────
+                item(span = StaggeredGridItemSpan.FullLine) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        DialKnob(
+                            value = dialValue,
+                            onValueChange = { dialValue = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = dialDateLabel,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = com.example.myapplication.ui.theme.trocchiFamily,
+                                fontSize = 13.sp
+                            ),
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                        Text(
+                            text = "Turn to travel through time",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f),
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.10f),
+                            thickness = 0.5.dp
+                        )
+                    }
+                }
+
                 grouped.forEach { (date, memoriesOnDate) ->
                     // Date header — full width
                     item(span = StaggeredGridItemSpan.FullLine) {
