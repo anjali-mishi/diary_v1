@@ -43,6 +43,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -1576,11 +1577,11 @@ fun IndexScreen(
     val memories by viewModel.memories.collectAsState()
     var memoryToEditOrDelete by remember { mutableStateOf<Memory?>(null) }
 
-    // Scroll-reactive TopAppBar
+    // Scroll-reactive TopAppBar — driven by horizontal row scroll
     val topBarScrolled = LocalTopBarScrolled.current
-    val gridState = rememberLazyStaggeredGridState()
-    LaunchedEffect(gridState) {
-        snapshotFlow { gridState.firstVisibleItemIndex > 0 || gridState.firstVisibleItemScrollOffset > 0 }
+    val rowState = rememberLazyListState()
+    LaunchedEffect(rowState) {
+        snapshotFlow { rowState.firstVisibleItemIndex > 0 || rowState.firstVisibleItemScrollOffset > 0 }
             .distinctUntilChanged()
             .collect { scrolled -> topBarScrolled.value = scrolled }
     }
@@ -1595,41 +1596,30 @@ fun IndexScreen(
                     val target = memoryToEditOrDelete ?: return@TextButton
                     memoryToEditOrDelete = null
                     onNavigateToEdit(target.id)
-                }) {
-                    Text("Edit")
-                }
+                }) { Text("Edit") }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = {
                     val target = memoryToEditOrDelete ?: return@TextButton
                     memoryToEditOrDelete = null
                     viewModel.deleteMemory(target)
-                }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
             }
         )
     }
 
     // ── Dial state ────────────────────────────────────────────────────────
-    // Dial maps 0..1 → oldest..newest memory timestamp (or ±1 year if no memories)
     val minTs = remember(memories) { memories.minOfOrNull { it.timestamp } ?: (System.currentTimeMillis() - 365L * 86_400_000) }
     val maxTs = remember(memories) { memories.maxOfOrNull { it.timestamp } ?: System.currentTimeMillis() }
-    // Start centred on the most recent memory
     var dialValue by remember { mutableStateOf(1f) }
-    val dialTs = remember(dialValue, minTs, maxTs) {
-        (minTs + (maxTs - minTs) * dialValue).toLong()
-    }
+    val dialTs = remember(dialValue, minTs, maxTs) { (minTs + (maxTs - minTs) * dialValue).toLong() }
     val dialDateLabel = remember(dialTs) {
         SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date(dialTs))
     }
 
-    // Group memories by formatted date, sorted by proximity to dialled timestamp (nearest first)
-    val dateFormatter = remember { SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault()) }
-    val grouped = remember(memories, dialTs) {
-        memories
-            .sortedBy { abs(it.timestamp - dialTs) }
-            .groupBy { dateFormatter.format(Date(it.timestamp)) }
+    // Sorted nearest-first to the dialled timestamp
+    val sortedMemories = remember(memories, dialTs) {
+        memories.sortedBy { abs(it.timestamp - dialTs) }
     }
 
     Box(
@@ -1637,7 +1627,7 @@ fun IndexScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        if (grouped.isEmpty()) {
+        if (memories.isEmpty()) {
             Column(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -1656,167 +1646,152 @@ fun IndexScreen(
                 )
             }
         } else {
-            LazyVerticalStaggeredGrid(
-                columns = StaggeredGridCells.Fixed(2),
-                state = gridState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 20.dp, end = 20.dp, top = 64.dp, bottom = 40.dp
-                ),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalItemSpacing = 8.dp,
+            // ── Horizontal memory card strip ─────────────────────────────
+            LazyRow(
+                state = rowState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 24.dp)
+                    .height(260.dp),
+                contentPadding = PaddingValues(horizontal = 28.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // ── Dial header ────────────────────────────────────────────────
-                item(span = StaggeredGridItemSpan.FullLine) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp, bottom = 4.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        DialKnob(
-                            value = dialValue,
-                            onValueChange = { dialValue = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = dialDateLabel,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontFamily = com.example.myapplication.ui.theme.trocchiFamily,
-                                fontSize = 13.sp
-                            ),
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                        Text(
-                            text = "Turn to travel through time",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f),
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.10f),
-                            thickness = 0.5.dp
-                        )
-                    }
-                }
-
-                grouped.forEach { (date, memoriesOnDate) ->
-                    // Date header — full width
-                    item(span = StaggeredGridItemSpan.FullLine) {
-                        Text(
-                            text = date,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontFamily = com.example.myapplication.ui.theme.trocchiFamily,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Normal
-                            ),
-                            color = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 16.dp, bottom = 4.dp)
-                        )
-                    }
-
-                    staggeredItems(memoriesOnDate, key = { it.id }) { memory ->
-                        // ── Swipe-left-to-edit ─────────────────────────────────────
-                        val swipeOffset = remember(memory.id) { Animatable(0f) }
-                        val swipeScope  = rememberCoroutineScope()
-                        val thresholdPx = with(LocalDensity.current) { 72.dp.toPx() }
-                        val cardEmotionColor = when (memory.emotionalTone) {
-                            "HAPPY"   -> Color(0xFFC9A84C)
-                            "SAD"     -> Color(0xFF6B9BD1)
-                            "ANXIOUS" -> Color(0xFF9B8BC6)
-                            "CALM"    -> Color(0xFF7FB5A0)
-                            "EXCITED" -> Color(0xFFFF9F66)
-                            else      -> Color(0xFFD4C5B9)
-                        }
-                        val revealProgress = (-swipeOffset.value / thresholdPx).coerceIn(0f, 1f)
-
-                        Box {
-                            // Tinted edit-icon background that scales in behind the sliding card
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(
-                                        cardEmotionColor.copy(alpha = 0.15f * revealProgress)
-                                    ),
-                                contentAlignment = Alignment.CenterEnd
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit",
-                                    tint = cardEmotionColor,
-                                    modifier = Modifier
-                                        .padding(end = 16.dp)
-                                        .scale(revealProgress)
-                                )
-                            }
-
-                            BentoMemoryCard(
-                                memory = memory,
-                                onClick = { onNavigateToDetail(memory.id) },
-                                onLongClick = { memoryToEditOrDelete = memory },
-                                modifier = Modifier
-                                    .offset { IntOffset(swipeOffset.value.roundToInt(), 0) }
-                                    .pointerInput(memory.id) {
-                                        detectHorizontalDragGestures(
-                                            onDragEnd = {
-                                                if (-swipeOffset.value >= thresholdPx) {
-                                                    // Threshold met — navigate to edit
-                                                    onNavigateToEdit(memory.id)
-                                                } else {
-                                                    // Snap card back with spring
-                                                    swipeScope.launch {
-                                                        swipeOffset.animateTo(
-                                                            targetValue = 0f,
-                                                            animationSpec = spring(
-                                                                stiffness = Spring.StiffnessMediumLow
-                                                            )
-                                                        )
-                                                    }
-                                                }
-                                            },
-                                            onDragCancel = {
-                                                swipeScope.launch {
-                                                    swipeOffset.animateTo(
-                                                        targetValue = 0f,
-                                                        animationSpec = spring(
-                                                            stiffness = Spring.StiffnessMediumLow
-                                                        )
-                                                    )
-                                                }
-                                            },
-                                            onHorizontalDrag = { _, dragAmount ->
-                                                // Only allow leftward (negative) movement
-                                                val newOffset = (swipeOffset.value + dragAmount)
-                                                    .coerceAtMost(0f)
-                                                swipeScope.launch {
-                                                    swipeOffset.snapTo(newOffset)
-                                                }
-                                            }
-                                        )
-                                    }
-                            )
-                        }
-                    }
-
-                    // Thin divider — full width
-                    item(span = StaggeredGridItemSpan.FullLine) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(top = 4.dp),
-                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
-                            thickness = 0.5.dp
-                        )
-                    }
+                itemsIndexed(sortedMemories, key = { _, m -> m.id }) { index, memory ->
+                    MemoryPreviewCard(
+                        memory = memory,
+                        cardIndex = index,
+                        onClick = { onNavigateToDetail(memory.id) },
+                        onLongClick = { memoryToEditOrDelete = memory },
+                        modifier = Modifier.size(width = 126.dp, height = 188.dp)
+                    )
                 }
             }
-        }
 
+            // ── Fade gradient — memories dissolve into the dial's field ──
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(320.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.00f to Color.Transparent,
+                                0.45f to MaterialTheme.colorScheme.background.copy(alpha = 0.7f),
+                                1.00f to MaterialTheme.colorScheme.background
+                            )
+                        )
+                    )
+            )
+
+            // ── Date + hint label above dial ──────────────────────────────
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 198.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = dialDateLabel,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = com.example.myapplication.ui.theme.trocchiFamily,
+                        fontSize = 14.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = "Turn to travel through time",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.42f)
+                )
+            }
+
+            // ── Dial — fixed at the very bottom ───────────────────────────
+            DialKnob(
+                value = dialValue,
+                onValueChange = { dialValue = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(195.dp)
+                    .align(Alignment.BottomCenter)
+            )
+        }
+    }
+}
+
+// ── Small tilted memory preview card used in IndexScreen ─────────────────────
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun MemoryPreviewCard(
+    memory: Memory,
+    cardIndex: Int,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val tilt      = if (cardIndex % 2 == 0) -4f else 4f
+    val emotCol   = emotionColor(memory.emotionalTone)
+    val dateLabel = remember(memory.timestamp) {
+        SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(memory.timestamp))
+    }
+    val title = remember(memory.textContent, memory.title) {
+        (memory.textContent?.takeIf { it.isNotBlank() } ?: memory.title).trimStart()
+    }
+
+    Box(
+        modifier = modifier
+            .graphicsLayer { rotationZ = tilt }
+            .appleShadow(cornerRadius = 14.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFFFEFCF7))
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Photo or emotion colour bar at top
+            if (memory.photoFilePath != null) {
+                AsyncImage(
+                    model = memory.photoFilePath,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(5.dp)
+                        .background(emotCol)
+                )
+            }
+            // Text content
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 15.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 5,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = dateLabel,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.55f)
+                )
+            }
+        }
     }
 }
 
