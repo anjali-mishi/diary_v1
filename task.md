@@ -408,6 +408,20 @@ Text-only memory:
 
 ---
 
+## Phase A-pre: Codebase Health
+
+- [ ] **Task 58d: Split Screens.kt into per-screen files.**
+  - `Screens.kt` is ~2200 lines and growing. Split into:
+    - `ui/DiaryScreen.kt` — DiaryScreen + BentoMemoryCard + bottom sheet
+    - `ui/IndexScreen.kt` — IndexScreen + PolaroidPillCard + DotRailTimeline
+    - `ui/CaptureScreen.kt` — CaptureScreen
+    - `ui/DetailScreen.kt` — MemoryDetailScreen
+    - `ui/Shared.kt` — shared helpers: appleShadow, cardShadow, emotionColor, paperTexture, MemoryCarousel
+  - No behaviour changes. Pure file reorganisation.
+  - Do before Phase A to keep new feature files clean and context reads cheap.
+
+---
+
 ## Phase A: Smarter Sentiment + Index Filters
 
 ### Goal
@@ -435,23 +449,16 @@ Replace keyword-based emotion detection with a free on-device/API model, and mak
   - API key stored in `local.properties` as `HUGGINGFACE_API_KEY`; read at build time via `BuildConfig`. Never commit the key.
   - Call `analyze()` inside `CaptureViewModel.saveMemory()` before persisting, replacing the current `EmotionDetector` call.
 
-- [ ] **Task 61: IndexScreen — Timeline Layout.**
-  - Replace the bento `LazyVerticalStaggeredGrid` in `IndexScreen` with a `LazyColumn` timeline layout.
-  - Layout per date group:
-    - **Date header**: full-width label (e.g. `"March 29"`) in `labelLarge`, `secondary` colour, with a hairline divider spanning the full width.
-    - **Memory row**: each memory renders as a compact horizontal row — emotion-coloured circular node (12dp) on the left connected to the vertical timeline line, followed by a single-line excerpt (first 60 chars), date/time chip, and emotion tag pill on the right.
-  - **Vertical timeline line**: a 2dp wide line in `secondary.copy(alpha = 0.15f)` that runs continuously through all rows inside a date group; the line is drawn behind the nodes using a `Box` with `drawBehind`.
-  - Tapping any row navigates to `MemoryDetailScreen` (same as before).
-  - Remove the old bento grid and header `Row` — the global TopAppBar from `AppNavigation` already provides the screen title and back button.
-  - Keep existing long-press edit/delete behavior on each row.
+- [x] **Task 61 (superseded): IndexScreen — Sentiment Dial + PolaroidPillCard List.**
+  - Replaced the planned `LazyColumn` timeline layout with a fully custom sentiment-driven browser:
+  - **DialKnob** (`ui/DialKnob.kt`): skeuomorphic Canvas-drawn radio dial, 6 snap positions (Happy/Calm/Excited/Anxious/Sad/Neutral). Sentiment carousel inside center pill, clipped to pill bounds. Dial value hoisted to `DiaryViewModel.indexDialValue` for cross-navigation persistence.
+  - **PolaroidPillCard**: 82dp row — 58×68dp polaroid thumbnail (2dp radius, `appleShadow`) with fixed decorative tilt + text column (snippet 16sp nunitoFamily Regular + date `labelSmall #8E8A86`). Equal visual weight for all cards. Fallback: date-as-art in Trocchi Bold on 25% washed emotion color.
+  - **DotRailTimeline**: Canvas dot-rail scrubber always visible; shows empty rail (no dots) when 0 memories match sentiment.
+  - **Sentiment gradient**: full-screen top-bleed using `graphicsLayer { translationY = -topBleedPx }`.
+  - **Shuffle button**: brand gradient circle, always `TopEnd` pinned.
 
-- [ ] **Task 62: IndexScreen — Emotion Filter Chips.**
-  - Add a horizontally-scrollable `LazyRow` of `FilterChip`s pinned directly below the `TopAppBar` (inside the screen's content area, above the timeline list).
-  - Chips: **All**, **Happy**, **Sad**, **Anxious**, **Calm**, **Excited**, **Neutral**, **Bookmarked**.
-  - Active chip: filled with the corresponding emotion colour (or `primary` for All/Bookmarked), white label; inactive: outlined with `secondary.copy(alpha = 0.4f)` border.
-  - Selecting a chip filters the timeline list to only show memories with that `emotionalTone` (or `isBookmarked == true` for Bookmarked). "All" clears the filter.
-  - Filter state is local (`remember { mutableStateOf("ALL") }`) — not persisted across navigation.
-  - Chip row has `8.dp` horizontal padding, `8.dp` top padding, `4.dp` bottom padding, and a soft bottom shadow (`appleShadow(2.dp)`) on the row container to visually separate it from the list.
+- [x] **Task 62 (superseded): Emotion Filter Chips → replaced by DialKnob.**
+  - Sentiment selection is handled by the DialKnob (6 sentiments). No chip row needed.
 
 ---
 

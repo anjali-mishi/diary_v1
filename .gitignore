@@ -9,6 +9,12 @@
 .cxx
 local.properties
 
+# Claude Code local files
+.claude/
+
+# Local asset reference folders (not bundled in app)
+BGs/
+
 # Log files
 *.log
 log.txt

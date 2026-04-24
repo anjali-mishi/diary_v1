@@ -145,6 +145,38 @@ Executing the specific soft, journal-like aesthetics defined in `design.md` requ
     * Changed Detail route `popExitTransition` from `ExitTransition.None` → `fadeOut(tween(400))` so the gradient `Box` fades out smoothly over 400ms instead of snapping.
     * Removed now-unused `Spring`, `spring`, and `ExitTransition` imports from `MemoryDetailScreen.kt`.
 
+## IndexScreen — Sentiment Dial Redesign
+
+* **Replaced bento grid with sentiment-filtered PolaroidPillCard list:**
+  * The bento `LazyVerticalStaggeredGrid` and timeline `LazyColumn` (Tasks 61–62 plan) were replaced with a new paradigm: a `DialKnob` component selects one of 6 sentiments; the list shows only memories matching that sentiment. This collapses filtering + navigation into a single tactile interaction rather than separate chips + list.
+
+* **DialKnob — pure Canvas, no blur API:**
+  * `DrawScope` in Compose has no `BlurMaskFilter`. Multi-layer shadow is simulated by stacking `drawRoundRect` calls at decreasing alpha and increasing offset — 5 dark layers (bottom-offset) + 5 light layers (top-offset). Step size and layer count control apparent blur radius.
+  * White rectangle above the pill artifact: `drawRect(backgroundColor)` was painting the canvas solid, making the region above the pill visible. Fixed by removing it — canvas is transparent outside the pill path.
+
+* **Dial state persistence — ViewModel hoist:**
+  * `remember` resets on config change and nav back-stack pop. Solution: `var indexDialValue: Float = 0f` on `DiaryViewModel` — survives config changes (ViewModel lifecycle) and is shared across `DiaryScreen` and `IndexScreen` via the same ViewModel instance in `AppNavigation`.
+
+* **PolaroidPillCard — equal visual weight:**
+  * Early drafts animated tilt and alpha based on `isFocal` state. Removed: focal-driven alpha makes cards feel like a carousel, not a list. All cards now have equal weight. Tilt is `remember(index)` — deterministic and decorative only.
+  * Shadow: `appleShadow(cornerRadius = 2.dp)` instead of `Modifier.shadow(3.dp)`. Rationale: `appleShadow` uses `setShadowLayer(24f, 0f, 6f, argb(18, 0, 0, 0))` — high blur, low alpha — matching the design system's "5–8% black, 16–32px blur" spec. Raw `shadow()` produces harsh Material elevation shadows.
+
+* **PolaroidPillCard no-photo fallback — Option C (date as art):**
+  * Option A (initial letter) was trialled but felt generic. Option C chosen: month + day rendered as large Trocchi Bold in the emotion color on a 25% washed background inside the polaroid frame. Aligns with the design system's "washed" emotional color variant rule and keeps the polaroid format recognisable.
+
+* **Sentiment gradient top-bleed:**
+  * IndexScreen content starts below the TopAppBar (Scaffold applies `innerPadding`). TopAppBar has `containerColor = Color.Transparent`. To make the sentiment gradient appear to start from the status bar, the gradient Box uses `graphicsLayer { translationY = -topBleedPx }` (status bar height + 56dp). `graphicsLayer` shifts drawing without affecting layout bounds, so it overflows into the TopAppBar/status bar zone without disrupting the composable's allocated space.
+
+* **DotRailTimeline — always visible, empty state rail:**
+  * Early version returned early (`if (count == 0) return`) hiding the timeline entirely when no memories matched the sentiment. Changed: the rail line is always drawn; dots are conditional on `count > 0`. Rationale: the timeline chrome (rail + shuffle button) is a persistent navigation affordance and should not disappear when the content is empty — it signals to the user that filtering is active.
+
+* **Shuffle button — brand gradient, fixed position:**
+  * Moved from inline `Row` end to `Alignment.TopEnd` on the bottom container `Box`. Rationale: `weight(1f)` on the timeline inside a `Row` already pushed the button to the end, but fixing it to `TopEnd` on the `Box` makes it completely immune to timeline width changes and reinforces the "always accessible" intent. Brand gradient (`#FF9966 → #FF6699`) applied to the circle background with white icon — consistent with all primary interactive surfaces in the design system.
+
+* **Typography hierarchy in list:**
+  * Snippet (primary): `nunitoFamily`, 16sp, Regular, 1 line — Trocchi is display-only; body text in lists uses the legible sans-serif per `design.md`.
+  * Date (secondary): `labelSmall`, `#8E8A86` — matches "Secondary/Hint Text" in the design system. Previous `emotCol.copy(alpha = 0.75f)` was failing accessibility contrast and violated the emotional color "full alpha for text only" rule.
+
 ## Observability / Debugging
 
 * **Structured Logcat Logging:** Added `android.util.Log` calls across all layers with a consistent `Diary.<Layer>` tag convention (`Diary.MainActivity`, `Diary.Navigation`, `Diary.CaptureVM`, `Diary.DiaryVM`, `Diary.Repository`, `Diary.Database`, `Diary.AudioPlayer`, `Diary.AudioRecorder`, `Diary.EmotionDetector`, `Diary.ImageStorage`). Filter all app logs in Logcat with `tag:Diary`. Uses `Log.d` for normal flow, `Log.i` for key state changes, and `Log.e` for errors with full stack traces.

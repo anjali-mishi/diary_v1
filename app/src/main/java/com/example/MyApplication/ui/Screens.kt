@@ -9,6 +9,7 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.RepeatMode
@@ -19,7 +20,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -78,8 +82,10 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -101,6 +107,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -141,6 +148,10 @@ import coil.compose.AsyncImage
 import com.example.myapplication.data.model.Memory
 import com.example.myapplication.ui.viewmodel.CaptureViewModel
 import com.example.myapplication.ui.viewmodel.DiaryViewModel
+import com.example.myapplication.ui.theme.trocchiFamily
+import com.example.myapplication.ui.theme.nunitoFamily
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import com.example.myapplication.ui.theme.EmotionHappy
 import com.example.myapplication.ui.theme.EmotionSad
 import com.example.myapplication.ui.theme.EmotionAnxious
@@ -232,6 +243,18 @@ fun emotionColor(tone: String?): Color = when (tone) {
     else      -> EmotionNeutral
 }
 
+private fun emotionEmoji(tone: String?) = when (tone?.uppercase()) {
+    "HAPPY"   -> "😊"
+    "SAD"     -> "😢"
+    "ANXIOUS" -> "😰"
+    "CALM"    -> "😌"
+    "EXCITED" -> "🎉"
+    else      -> "😐"
+}
+
+private fun emotionLabel(tone: String?) =
+    tone?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Neutral"
+
 @Composable
 fun Modifier.appleShadow(cornerRadius: Dp = 100.dp): Modifier {
     return this.drawBehind {
@@ -239,24 +262,35 @@ fun Modifier.appleShadow(cornerRadius: Dp = 100.dp): Modifier {
             val paint = Paint().apply {
                 asFrameworkPaint().apply {
                     isAntiAlias = true
-                    color = android.graphics.Color.WHITE // Solid color required to cast shadow
+                    color = android.graphics.Color.WHITE
+                    setShadowLayer(24f, 0f, 6f, android.graphics.Color.argb(18, 0, 0, 0))
+                }
+            }
+            canvas.drawRoundRect(0f, 0f, size.width, size.height,
+                cornerRadius.toPx(), cornerRadius.toPx(), paint)
+        }
+    }
+}
+
+// Same shadow tone as appleShadow but intensity 0→1 (0 = no shadow, 1 = full appleShadow)
+fun Modifier.cardShadow(intensity: Float, cornerRadius: Dp = 14.dp): Modifier {
+    if (intensity <= 0f) return this
+    return this.drawBehind {
+        drawIntoCanvas { canvas ->
+            val paint = Paint().apply {
+                asFrameworkPaint().apply {
+                    isAntiAlias = true
+                    color = android.graphics.Color.WHITE
                     setShadowLayer(
-                        24f,   // blur radius (px)
-                        0f,    // x offset
-                        6f,    // y offset
-                        android.graphics.Color.argb(18, 0, 0, 0) // ~7% black
+                        24f * intensity,
+                        0f,
+                        6f * intensity,
+                        android.graphics.Color.argb((18 * intensity).toInt(), 0, 0, 0)
                     )
                 }
             }
-            canvas.drawRoundRect(
-                left = 0f,
-                top = 0f,
-                right = size.width,
-                bottom = size.height,
-                radiusX = cornerRadius.toPx(),
-                radiusY = cornerRadius.toPx(),
-                paint = paint
-            )
+            canvas.drawRoundRect(0f, 0f, size.width, size.height,
+                cornerRadius.toPx(), cornerRadius.toPx(), paint)
         }
     }
 }
@@ -1577,15 +1611,6 @@ fun IndexScreen(
     val memories by viewModel.memories.collectAsState()
     var memoryToEditOrDelete by remember { mutableStateOf<Memory?>(null) }
 
-    // Scroll-reactive TopAppBar — driven by horizontal row scroll
-    val topBarScrolled = LocalTopBarScrolled.current
-    val rowState = rememberLazyListState()
-    LaunchedEffect(rowState) {
-        snapshotFlow { rowState.firstVisibleItemIndex > 0 || rowState.firstVisibleItemScrollOffset > 0 }
-            .distinctUntilChanged()
-            .collect { scrolled -> topBarScrolled.value = scrolled }
-    }
-
     if (memoryToEditOrDelete != null) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { memoryToEditOrDelete = null },
@@ -1609,18 +1634,31 @@ fun IndexScreen(
     }
 
     // ── Dial state ────────────────────────────────────────────────────────
-    val minTs = remember(memories) { memories.minOfOrNull { it.timestamp } ?: (System.currentTimeMillis() - 365L * 86_400_000) }
-    val maxTs = remember(memories) { memories.maxOfOrNull { it.timestamp } ?: System.currentTimeMillis() }
-    var dialValue by remember { mutableStateOf(1f) }
-    val dialTs = remember(dialValue, minTs, maxTs) { (minTs + (maxTs - minTs) * dialValue).toLong() }
-    val dialDateLabel = remember(dialTs) {
-        SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date(dialTs))
+    val timeOrderedMemories = remember(memories) { memories.sortedBy { it.timestamp } }
+
+    // Sentiment wheel — 6 fixed positions, one per emotion
+    val sentimentItems = remember { listOf("Happy", "Calm", "Excited", "Anxious", "Sad", "Neutral") }
+    var dialValue by remember { mutableStateOf(viewModel.indexDialValue) }
+    val focalSentimentIdx = (dialValue * (sentimentItems.size - 1))
+        .roundToInt().coerceIn(0, sentimentItems.lastIndex)
+    val selectedSentiment = sentimentItems[focalSentimentIdx].uppercase()
+
+    // Filter memories by selected sentiment
+    val filteredMemories = remember(timeOrderedMemories, selectedSentiment) {
+        timeOrderedMemories.filter { it.emotionalTone?.uppercase() == selectedSentiment }
     }
 
-    // Sorted nearest-first to the dialled timestamp
-    val sortedMemories = remember(memories, dialTs) {
-        memories.sortedBy { abs(it.timestamp - dialTs) }
+    // Carousel index — driven by timeline scrubber
+    var carouselFractIdx by remember(filteredMemories) { mutableStateOf(0f) }
+
+    // Shuffle — seed 0 = natural order, non-zero = shuffled
+    var shuffleSeed by remember(filteredMemories) { mutableStateOf(0) }
+    val displayMemories = remember(filteredMemories, shuffleSeed) {
+        if (shuffleSeed == 0) filteredMemories
+        else filteredMemories.shuffled(kotlin.random.Random(shuffleSeed))
     }
+
+    val sentimentColor = emotionColor(selectedSentiment)
 
     Box(
         modifier = modifier
@@ -1646,151 +1684,466 @@ fun IndexScreen(
                 )
             }
         } else {
-            // ── Horizontal memory card strip ─────────────────────────────
-            LazyRow(
-                state = rowState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 24.dp)
-                    .height(260.dp),
-                contentPadding = PaddingValues(horizontal = 28.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                itemsIndexed(sortedMemories, key = { _, m -> m.id }) { index, memory ->
-                    MemoryPreviewCard(
-                        memory = memory,
-                        cardIndex = index,
-                        onClick = { onNavigateToDetail(memory.id) },
-                        onLongClick = { memoryToEditOrDelete = memory },
-                        modifier = Modifier.size(width = 126.dp, height = 188.dp)
-                    )
-                }
+            // ── 1. Sentiment gradient — full screen top-bleed ────────────
+            val density = LocalDensity.current
+            val topBleedPx = with(density) {
+                WindowInsets.statusBars.getTop(density).toFloat() + 56.dp.toPx()
             }
-
-            // ── Fade gradient — memories dissolve into the dial's field ──
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(320.dp)
+                    .fillMaxHeight()
+                    .graphicsLayer { translationY = -topBleedPx }
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.00f to sentimentColor.copy(alpha = 0.22f),
+                                0.55f to Color.Transparent
+                            )
+                        )
+                    )
+            )
+
+            // ── Vertical polaroid-pill memory list ────────────────────────
+            val listState = rememberLazyListState()
+            val focalIdx  = carouselFractIdx.roundToInt()
+                .coerceIn(0, (displayMemories.size - 1).coerceAtLeast(0))
+
+            LaunchedEffect(focalIdx) {
+                if (displayMemories.isNotEmpty()) listState.animateScrollToItem(focalIdx)
+            }
+
+            if (displayMemories.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(bottom = 285.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No ${sentimentItems[focalSentimentIdx].lowercase()} memories yet",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
+                    )
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize().padding(bottom = 280.dp),
+                    contentPadding = PaddingValues(
+                        top = 8.dp, bottom = 40.dp,
+                        start = 16.dp, end = 16.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    itemsIndexed(displayMemories) { index, memory ->
+                        PolaroidPillCard(
+                            memory    = memory,
+                            index     = index,
+                            isFocal   = index == focalIdx,
+                            onClick   = { onNavigateToDetail(memory.id) },
+                            onLongClick = { memoryToEditOrDelete = memory }
+                        )
+                    }
+                }
+            }
+
+            // ── Fade gradient — list dissolves behind timeline zone ───────
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(360.dp)
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
                             colorStops = arrayOf(
                                 0.00f to Color.Transparent,
-                                0.45f to MaterialTheme.colorScheme.background.copy(alpha = 0.7f),
+                                0.22f to MaterialTheme.colorScheme.background.copy(alpha = 0.30f),
+                                0.42f to MaterialTheme.colorScheme.background.copy(alpha = 0.72f),
+                                0.62f to MaterialTheme.colorScheme.background.copy(alpha = 0.95f),
                                 1.00f to MaterialTheme.colorScheme.background
                             )
                         )
                     )
             )
 
-            // ── Date + hint label above dial ──────────────────────────────
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 198.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = dialDateLabel,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = com.example.myapplication.ui.theme.trocchiFamily,
-                        fontSize = 14.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = "Turn to travel through time",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.42f)
-                )
-            }
-
-            // ── Dial — fixed at the very bottom ───────────────────────────
-            DialKnob(
-                value = dialValue,
-                onValueChange = { dialValue = it },
+            // ── Bottom container: timeline + shuffle + dial ───────────────
+            val appBg = MaterialTheme.colorScheme.background
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(195.dp)
-                    .align(Alignment.BottomCenter)
+                    .height(280.dp)
+                    .align(Alignment.BottomCenter),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                // Timeline — full width minus right margin for shuffle button
+                DotRailTimeline(
+                    count           = displayMemories.size,
+                    fractionalIndex = carouselFractIdx,
+                    onSeek          = { carouselFractIdx = it },
+                    modifier        = Modifier
+                        .fillMaxWidth()
+                        .height(36.dp)
+                        .padding(top = 8.dp, start = 24.dp, end = 60.dp)
+                        .align(Alignment.TopStart)
+                )
+
+                // Shuffle — brand gradient, always pinned to right edge
+                Box(
+                    modifier = Modifier
+                        .padding(top = 4.dp, end = 16.dp)
+                        .size(32.dp)
+                        .align(Alignment.TopEnd)
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFFFF9966), Color(0xFFFF6699))
+                            ),
+                            CircleShape
+                        )
+                        .clickable { shuffleSeed = if (shuffleSeed == 0) 1 else shuffleSeed + 1 },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector        = Icons.Default.Shuffle,
+                        contentDescription = "Shuffle",
+                        tint               = Color.White,
+                        modifier           = Modifier.size(16.dp)
+                    )
+                }
+
+                // Dial
+                DialKnob(
+                    value           = dialValue,
+                    onValueChange   = { dialValue = it; viewModel.indexDialValue = it },
+                    snapCount       = sentimentItems.size,
+                    items           = sentimentItems,
+                    backgroundColor = appBg,
+                    modifier        = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 40.dp)
+                        .height(155.dp)
+                )
+            }
+        }
+    }
+}
+
+// ── Real-time dial-driven carousel ────────────────────────────────────────────
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun PolaroidPillCard(
+    memory: Memory,
+    index: Int,
+    isFocal: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val emotCol   = emotionColor(memory.emotionalTone)
+    val dateLabel = remember(memory.timestamp) {
+        SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(memory.timestamp))
+    }
+    val snippet = remember(memory.textContent, memory.title) {
+        (memory.textContent?.takeIf { it.isNotBlank() } ?: memory.title).trimStart()
+    }
+
+    // Fixed per-card tilt — decorative only, not driven by focal state
+    val tilt = remember(index) { ((index * 7 + 3) % 9 - 4).toFloat() }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(82.dp)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Polaroid thumbnail
+        Box(
+            modifier = Modifier
+                .width(58.dp)
+                .height(68.dp)
+                .graphicsLayer { rotationZ = tilt }
+                .appleShadow(cornerRadius = 2.dp)
+                .background(Color.White, RoundedCornerShape(2.dp))
+                .padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (memory.photoFilePath != null) {
+                AsyncImage(
+                    model = memory.photoFilePath,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                // Fallback Option C: date as art — large typographic date stamp
+                Box(
+                    modifier = Modifier.fillMaxSize().background(emotCol.copy(alpha = 0.25f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val dateParts = remember(memory.timestamp) {
+                        val fmt = SimpleDateFormat("MMM\nd", Locale.getDefault())
+                        fmt.format(Date(memory.timestamp))
+                    }
+                    Text(
+                        text      = dateParts,
+                        style     = androidx.compose.ui.text.TextStyle(
+                            fontFamily = trocchiFamily,
+                            fontSize   = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color      = emotCol,
+                            lineHeight = 20.sp,
+                            textAlign  = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    )
+                }
+            }
+        }
+
+        // Text block — snippet is primary, date is secondary
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (snippet.isNotBlank()) {
+                Text(
+                    text     = snippet,
+                    style    = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = nunitoFamily,
+                        fontSize   = 16.sp,
+                        fontWeight = FontWeight.Normal,
+                        color      = MaterialTheme.colorScheme.onBackground
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+            }
+            Text(
+                text  = dateLabel,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF8E8A86)
             )
         }
     }
 }
 
-// ── Small tilted memory preview card used in IndexScreen ─────────────────────
+@Composable
+private fun DotRailTimeline(
+    count: Int,
+    fractionalIndex: Float,
+    onSeek: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val railColor = Color(0xFF2C2A29)
+    val focalIdx  = if (count > 0)
+        fractionalIndex.roundToInt().coerceIn(0, count - 1) else 0
+    Canvas(
+        modifier = modifier.pointerInput(count) {
+            if (count > 0) detectDragGestures(
+                onDragStart = { offset ->
+                    val norm = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                    onSeek(norm * (count - 1))
+                },
+                onDrag = { change, _ ->
+                    change.consume()
+                    val norm = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f)
+                    onSeek(norm * (count - 1))
+                }
+            )
+        }
+    ) {
+        val railY = size.height / 2f
+
+        // Rail line — always drawn
+        drawLine(
+            color       = railColor.copy(alpha = 0.15f),
+            start       = Offset(0f, railY),
+            end         = Offset(size.width, railY),
+            strokeWidth = 1.5f,
+            cap         = StrokeCap.Round
+        )
+
+        // Dots — only when there are memories to navigate
+        if (count > 0) {
+            val spacing = if (count > 1) size.width / (count - 1).toFloat() else size.width / 2f
+            for (i in 0 until count) {
+                val x     = if (count == 1) size.width / 2f else i * spacing
+                val focal = i == focalIdx
+                drawCircle(
+                    color  = if (focal) railColor else railColor.copy(alpha = 0.28f),
+                    radius = if (focal) 5f * density else 3f * density,
+                    center = Offset(x, railY)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemoryCarousel(
+    memories: List<Memory>,
+    fractionalIndex: Float,
+    onMemoryClick: (Memory) -> Unit,
+    onMemoryLongClick: (Memory) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(modifier = modifier) {
+        val W = maxWidth.value
+        val H = maxHeight.value
+
+        // Focal: 60%×0.85×1.2 wide, 32%×0.85×1.15 tall (+20% W / +15% H on My Diaries)
+        val focalW = W * 0.612f
+        val focalH = H * 0.376f
+        val sideW  = W * 0.306f
+        val sideH  = H * 0.258f
+
+        // Two-tier step system for progressive overlap:
+        //   step1: focal→dist1 — dist1 shows 25% of sideW past focal edge
+        //   step2: dist1→dist2 — dist2 shows only 10% of sideW past dist1 edge (more buried)
+        val step1 = focalW / 2f - sideW * 0.25f   // large step, generous peek
+        val step2 = sideW * 0.10f                  // small step, mostly hidden behind dist1
+
+        // Non-linear position: smooth piecewise linear by absRel segment
+        fun xOffset(relPos: Float): Float {
+            val sign   = if (relPos >= 0f) 1f else -1f
+            val absRel = abs(relPos)
+            return sign * when {
+                absRel <= 1f -> absRel * step1
+                else         -> step1 + (absRel - 1f) * step2
+            }
+        }
+
+        val cx = W / 2f
+        val cy = H / 2f
+
+        // Integer focal index drives SIZE; fractionalIndex drives POSITION
+        val focalIdx   = fractionalIndex.roundToInt().coerceIn(0, memories.lastIndex)
+        val baseIdx    = fractionalIndex.toInt().coerceIn(0, memories.lastIndex)
+        val renderFrom = maxOf(0, baseIdx - 2)
+        val renderTo   = minOf(memories.lastIndex, baseIdx + 2)
+
+        for (i in renderFrom..renderTo) {
+            key(i) {
+                // t: integer depth (0 = focal, 1 = first behind, 2 = second behind)
+                // NOT clamped — let it reach 2.0 so dist=2 cards are visibly smaller
+                val tAnim = remember { Animatable(abs(i - focalIdx).toFloat()) }
+                LaunchedEffect(focalIdx) {
+                    tAnim.animateTo(
+                        targetValue   = abs(i - focalIdx).toFloat(),
+                        animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f)
+                    )
+                }
+                val t = tAnim.value
+
+                // Perspective scale: each depth level shrinks by ~28%
+                // dist=0 → 1.00, dist=1 → 0.72, dist=2 → 0.52
+                val perspScale = when {
+                    t <= 1f -> 1f - t * 0.28f
+                    else    -> 0.72f - (t - 1f) * 0.20f
+                }.coerceIn(0.35f, 1f)
+
+                // Position still uses continuous fractionalIndex — slides every frame
+                val relPos = i.toFloat() - fractionalIndex
+                val absRel = abs(relPos).coerceIn(0f, 2f)
+
+                val shadowIntensity = (1f - absRel / 2f).coerceIn(0f, 1f)
+
+                val cardW  = focalW * perspScale
+                val cardH  = focalH * perspScale
+
+                val cardCx = cx + xOffset(relPos)
+                val xOff   = (cardCx - cardW / 2f).dp
+                val yOff   = (cy - cardH / 2f).dp
+
+                MemoryPreviewCard(
+                    memory          = memories[i],
+                    cardIndex       = i,
+                    shadowIntensity = shadowIntensity,
+                    onClick         = { onMemoryClick(memories[i]) },
+                    onLongClick     = { onMemoryLongClick(memories[i]) },
+                    modifier        = Modifier
+                        .offset(x = xOff, y = yOff)
+                        .size(width = cardW.dp, height = cardH.dp)
+                        .zIndex(2f - absRel)
+                )
+            }
+        }
+    }
+}
+
+// ── Memory preview card ────────────────────────────────────────────────────────
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun MemoryPreviewCard(
     memory: Memory,
     cardIndex: Int,
+    shadowIntensity: Float = 1f,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val tilt      = if (cardIndex % 2 == 0) -4f else 4f
     val emotCol   = emotionColor(memory.emotionalTone)
+    val emoji     = emotionEmoji(memory.emotionalTone)
+    val label     = emotionLabel(memory.emotionalTone)
     val dateLabel = remember(memory.timestamp) {
         SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(memory.timestamp))
     }
-    val title = remember(memory.textContent, memory.title) {
+    val snippet = remember(memory.textContent, memory.title) {
         (memory.textContent?.takeIf { it.isNotBlank() } ?: memory.title).trimStart()
     }
 
-    Box(
+    Column(
         modifier = modifier
-            .graphicsLayer { rotationZ = tilt }
-            .appleShadow(cornerRadius = 14.dp)
+            .cardShadow(intensity = shadowIntensity, cornerRadius = 14.dp)
             .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xFFFEFCF7))
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Photo or emotion colour bar at top
+        // Top 45%: emotion color block (or photo) with date
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(0.45f)
+                .background(
+                    if (memory.photoFilePath == null) emotCol.copy(alpha = 0.9f)
+                    else Color.Transparent
+                )
+        ) {
             if (memory.photoFilePath != null) {
                 AsyncImage(
                     model = memory.photoFilePath,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(80.dp)
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(5.dp)
-                        .background(emotCol)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
-            // Text content
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        lineHeight = 15.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 5,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = dateLabel,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.55f)
-                )
-            }
+            Text(
+                text = dateLabel,
+                style = androidx.compose.ui.text.TextStyle(
+                    fontFamily = trocchiFamily,
+                    fontSize = 16.sp,
+                    color = Color.White
+                ),
+                modifier = Modifier.align(Alignment.BottomStart).padding(10.dp)
+            )
+        }
+        // Bottom 55%: paper text zone
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(0.55f)
+                .background(Color(0xFFFEFCF7))
+                .padding(horizontal = 9.dp, vertical = 7.dp)
+        ) {
+            Text(
+                text = snippet,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, lineHeight = 14.sp),
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 5,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -1839,7 +2192,6 @@ fun BentoMemoryCard(
     } else Modifier
 
     if (memory.photoFilePath != null) {
-        // Photo-first layout: AsyncImage hero + content row below
         val audioDuration = remember(memory.audioFilePath) { audioFileDuration(memory.audioFilePath) }
         Box(
             modifier = modifier
@@ -1854,26 +2206,18 @@ fun BentoMemoryCard(
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
         ) {
             Column {
-                // Top: photo hero
                 AsyncImage(
                     model = memory.photoFilePath,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
+                    modifier = Modifier.fillMaxWidth().height(160.dp)
                 )
-                // Bottom: headline + body + date
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                     Text(
                         text = cardHeadline,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
-                        ),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp),
                         color = MaterialTheme.colorScheme.onBackground,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        maxLines = 2, overflow = TextOverflow.Ellipsis
                     )
                     if (cardBody.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
@@ -1881,42 +2225,19 @@ fun BentoMemoryCard(
                             text = cardBody,
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            maxLines = 2, overflow = TextOverflow.Ellipsis
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = dateLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = dateLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f))
                         if (memory.audioFilePath != null && audioDuration != null) {
                             Row(
-                                modifier = Modifier
-                                    .background(
-                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f),
-                                        RoundedCornerShape(50)
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                modifier = Modifier.background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f), RoundedCornerShape(50)).padding(horizontal = 8.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Mic,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.secondary,
-                                    modifier = Modifier.size(11.dp)
-                                )
-                                Text(
-                                    text = audioDuration,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
+                                Icon(imageVector = Icons.Default.Mic, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(11.dp))
+                                Text(text = audioDuration, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
                             }
                         }
                     }
@@ -1927,8 +2248,12 @@ fun BentoMemoryCard(
         val audioPlayer = remember { AudioPlayer() }
         var isPlaying by remember { mutableStateOf(false) }
         val audioDuration = remember(memory.audioFilePath) { audioFileDuration(memory.audioFilePath) }
-        DisposableEffect(memory.audioFilePath) {
-            onDispose { audioPlayer.release() }
+        DisposableEffect(memory.audioFilePath) { onDispose { audioPlayer.release() } }
+        val waveBarCount = 30
+        val waveBarHeights = remember(memory.waveformData, memory.audioFilePath) {
+            val parsed = memory.waveformData?.removeSurrounding("[", "]")?.split(",")?.mapNotNull { it.trim().toFloatOrNull() }?.takeIf { it.isNotEmpty() }
+            parsed?.let { data -> List(waveBarCount) { i -> data[(i.toFloat() / waveBarCount * data.size).toInt().coerceAtMost(data.size - 1)].coerceIn(0.15f, 1f) } }
+                ?: run { val rng = Random(memory.audioFilePath.hashCode()); List(waveBarCount) { 0.15f + 0.85f * rng.nextFloat() } }
         }
         Box(
             modifier = modifier
@@ -1943,135 +2268,42 @@ fun BentoMemoryCard(
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
         ) {
             Column {
-                // Top: waveform visualisation with overlaid play/pause
-                val waveBarCount = 30
-                val waveBarHeights = remember(memory.waveformData, memory.audioFilePath) {
-                    val parsed = memory.waveformData
-                        ?.removeSurrounding("[", "]")
-                        ?.split(",")
-                        ?.mapNotNull { it.trim().toFloatOrNull() }
-                        ?.takeIf { it.isNotEmpty() }
-                    parsed?.let { data ->
-                        // Resample stored waveform to exactly waveBarCount bars
-                        List(waveBarCount) { i ->
-                            val idx = (i.toFloat() / waveBarCount * data.size)
-                                .toInt().coerceAtMost(data.size - 1)
-                            data[idx].coerceIn(0.15f, 1f)
-                        }
-                    } ?: run {
-                        // Fallback for older entries without stored waveform data
-                        val rng = Random(memory.audioFilePath.hashCode())
-                        List(waveBarCount) { 0.15f + 0.85f * rng.nextFloat() }
-                    }
-                }
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .background(emotionColor.copy(alpha = 0.85f))
+                    modifier = Modifier.fillMaxWidth().height(160.dp).background(emotionColor.copy(alpha = 0.85f))
                         .clickable {
-                            if (isPlaying) {
-                                audioPlayer.stop()
-                                isPlaying = false
-                            } else {
-                                audioPlayer.playFile(memory.audioFilePath) {
-                                    isPlaying = false
-                                }
-                                isPlaying = true
-                            }
+                            if (isPlaying) { audioPlayer.stop(); isPlaying = false }
+                            else { audioPlayer.playFile(memory.audioFilePath) { isPlaying = false }; isPlaying = true }
                         }
                 ) {
-                    Canvas(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 14.dp, vertical = 14.dp)
-                    ) {
-                        val totalBars = waveBarCount
-                        val barW = size.width / (totalBars * 1.6f)
-                        val gap = barW * 0.6f
+                    Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 14.dp)) {
+                        val barW = size.width / (waveBarCount * 1.6f); val gap = barW * 0.6f
                         waveBarHeights.forEachIndexed { i, frac ->
-                            val barH = frac * size.height
-                            val x = i * (barW + gap)
-                            val y = (size.height - barH) / 2f
-                            drawRoundRect(
-                                color = Color.White.copy(alpha = 0.75f),
-                                topLeft = Offset(x, y),
-                                size = Size(barW, barH),
-                                cornerRadius = CornerRadius(barW / 2f)
-                            )
+                            val barH = frac * size.height; val x = i * (barW + gap); val y = (size.height - barH) / 2f
+                            drawRoundRect(color = Color.White.copy(alpha = 0.75f), topLeft = Offset(x, y), size = Size(barW, barH), cornerRadius = CornerRadius(barW / 2f))
                         }
                     }
-                    // Play/pause button centred over waveform
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .size(38.dp)
-                            .background(Color.White.copy(alpha = 0.22f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
+                    Box(modifier = Modifier.align(Alignment.Center).size(38.dp).background(Color.White.copy(alpha = 0.22f), CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
                     }
-                    if (audioDuration != null) {
-                        Text(
-                            text = audioDuration,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.85f),
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(8.dp)
-                        )
-                    }
+                    if (audioDuration != null) Text(text = audioDuration, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.85f), modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp))
                 }
-                // Bottom: headline + body + date
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Text(
-                        text = cardHeadline,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onBackground,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (cardBody.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = cardBody,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Text(text = cardHeadline, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp), color = MaterialTheme.colorScheme.onBackground, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    if (cardBody.isNotEmpty()) { Spacer(modifier = Modifier.height(4.dp)); Text(text = cardBody, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp), color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f), maxLines = 2, overflow = TextOverflow.Ellipsis) }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = dateLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
-                    )
+                    Text(text = dateLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f))
                 }
             }
         }
     } else {
-        // Text-hero layout — full-bleed gradient, bold headline
-        // No sentiment → plain white; HAPPY → subtle pastel yellow; others → tint of emotionColor
-        val hasTone = memory.emotionalTone in setOf("HAPPY", "SAD", "ANXIOUS", "CALM", "EXCITED")
         val gradientColors = remember(memory.emotionalTone) {
             when (memory.emotionalTone) {
-                "HAPPY" -> listOf(Color(0xFFF5EDCF), Color(0xFFE8DFA0)) // desaturated pastel yellow
+                "HAPPY" -> listOf(Color(0xFFF5EDCF), Color(0xFFE8DFA0))
                 "SAD", "ANXIOUS", "CALM", "EXCITED" -> listOf(emotionColor.copy(alpha = 0.08f), emotionColor.copy(alpha = 0.22f))
-                else    -> listOf(Color.White, Color.White)             // no gradient
+                else -> listOf(Color.White, Color.White)
             }
         }
-        val gradientBrush = remember(gradientColors) {
-            Brush.linearGradient(colors = gradientColors)
-        }
+        val gradientBrush = remember(gradientColors) { Brush.linearGradient(colors = gradientColors) }
         Box(
             modifier = modifier
                 .fillMaxWidth()
@@ -2087,32 +2319,10 @@ fun BentoMemoryCard(
                 .padding(20.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = cardHeadline,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (cardBody.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = cardBody,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                        maxLines = 5,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                Text(text = cardHeadline, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp), color = MaterialTheme.colorScheme.onBackground, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                if (cardBody.isNotEmpty()) { Spacer(modifier = Modifier.height(8.dp)); Text(text = cardBody, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp), color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f), maxLines = 5, overflow = TextOverflow.Ellipsis) }
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = dateLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
-                )
+                Text(text = dateLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f))
             }
         }
     }

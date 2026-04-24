@@ -17,6 +17,8 @@ private const val TAG = "Diary.DiaryVM"
 
 class DiaryViewModel(private val repository: MemoryRepository) : ViewModel() {
 
+    var indexDialValue: Float = 0f
+
     val memories: StateFlow<List<Memory>> = repository.allMemories
         .onEach { list -> Log.d(TAG, "memories updated: count=${list.size}") }
         .stateIn(

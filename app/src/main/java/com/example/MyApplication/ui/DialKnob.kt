@@ -2,41 +2,44 @@ package com.example.myapplication.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.text.*
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.example.myapplication.ui.theme.trocchiFamily
 import kotlinx.coroutines.launch
 import kotlin.math.*
+import kotlin.math.roundToInt
 
-private const val MIN_ROT = -2.618f   // −150°
-private const val MAX_ROT =  2.618f   //  +150°
+private const val MIN_ROT = -2.618f
+private const val MAX_ROT =  2.618f
 
-/**
- * Skeuomorphic radio-dial knob — Compose Canvas, zero dependencies.
- *
- * Design intent:
- *  · Low ~15° camera angle: tall side wall, very thin top ellipse
- *  · Matte cream/ivory finish — no sharp specular highlights
- *  · Dense knurling ridges; shift with rotation to sell the 3-D spin
- *  · No hard base; dial fades at the bottom & sits on a soft cast shadow
- */
 @Composable
 fun DialKnob(
     value: Float,
     onValueChange: (Float) -> Unit,
+    snapCount: Int = 0,
+    items: List<String> = emptyList(),
+    backgroundColor: Color = Color(0xFFF5F2EB.toInt()),
     modifier: Modifier = Modifier,
 ) {
-    val scope    = rememberCoroutineScope()
-    val rotAnim  = remember { Animatable(lerpF(MIN_ROT, MAX_ROT, value.coerceIn(0f, 1f))) }
-    val decay    = remember { exponentialDecay<Float>(frictionMultiplier = 3.2f) }
+    val scope        = rememberCoroutineScope()
+    val rotAnim      = remember { Animatable(lerpF(MIN_ROT, MAX_ROT, value.coerceIn(0f, 1f))) }
+    val decay        = remember { exponentialDecay<Float>(frictionMultiplier = 3.2f) }
+    val textMeasurer = rememberTextMeasurer()
 
     Canvas(
         modifier = modifier.pointerInput(Unit) {
@@ -54,185 +57,311 @@ fun DialKnob(
                     val vx = vt.calculateVelocity().x * 0.010f
                     scope.launch {
                         rotAnim.animateDecay(vx, decay)
-                        val c = rotAnim.value.coerceIn(MIN_ROT, MAX_ROT)
-                        if (rotAnim.value != c) rotAnim.snapTo(c)
+                        val clamped = rotAnim.value.coerceIn(MIN_ROT, MAX_ROT)
+                        if (rotAnim.value != clamped) rotAnim.snapTo(clamped)
+                        if (snapCount > 1) {
+                            val norm    = normRot(rotAnim.value)
+                            val nearest = (norm * (snapCount - 1)).roundToInt()
+                                .coerceIn(0, snapCount - 1)
+                            val snapRot = lerpF(
+                                MIN_ROT, MAX_ROT,
+                                nearest.toFloat() / (snapCount - 1)
+                            )
+                            rotAnim.animateTo(
+                                targetValue   = snapRot,
+                                animationSpec = spring(dampingRatio = 0.62f, stiffness = 280f)
+                            )
+                        }
                         onValueChange(normRot(rotAnim.value))
                     }
                 }
             )
         }
-    ) { drawDial(rotAnim.value) }
+    ) {
+        drawDialScene(
+            normalizedValue = normRot(rotAnim.value),
+            items           = items,
+            textMeasurer    = textMeasurer,
+            backgroundColor = backgroundColor,
+        )
+    }
 }
 
 private fun lerpF(a: Float, b: Float, t: Float) = a + (b - a) * t
 private fun normRot(rot: Float) = ((rot - MIN_ROT) / (MAX_ROT - MIN_ROT)).coerceIn(0f, 1f)
 
-// ─── Rendering ────────────────────────────────────────────────────────────────
+private fun DrawScope.drawDialScene(
+    normalizedValue: Float,
+    items: List<String>,
+    textMeasurer: TextMeasurer,
+    backgroundColor: Color,
+) {
+    val w = size.width
+    val h = size.height
 
-private fun DrawScope.drawDial(rotRad: Float) {
-    val cx    = size.width / 2f
-    val rx    = size.width * 0.44f
-    val ry    = rx * 0.115f          // flat top ellipse — ~15° perspective
-    val bodyH = size.height * 0.84f
-    val topY  = (size.height - bodyH) / 2f
-    val botY  = topY + bodyH
+    // ── Palette ───────────────────────────────────────────────────────────
+    val neuDark    = Color(0.38f, 0.27f, 0.14f, 1f)   // warm shadow tint
+    val surfaceUp  = Color(0xFFFCFAF6.toInt())          // --surface-raised
+    val surfaceDn  = Color(0xFFEDE6DA.toInt())          // window top (warm/sunken)
+    val rimAccent  = Color(0xFF7A6250.toInt())          // --rim  (focal label)
+    val mutedFg    = Color(0xFF9A8A78.toInt())          // --muted-foreground (side labels)
 
-    // Stadium clip path (top lower-arc → right side → bottom upper-arc → left side)
-    val bodyPath = Path().apply {
-        moveTo(cx - rx, topY)
-        arcTo(Rect(cx - rx, topY - ry, cx + rx, topY + ry), 180f,  180f, false)
-        lineTo(cx + rx, botY)
-        arcTo(Rect(cx - rx, botY - ry, cx + rx, botY + ry),   0f, -180f, false)
-        close()
+    // ── Outer pill geometry ───────────────────────────────────────────────
+    val pillH  = h * 0.76f
+    val pillT  = (h - pillH) / 2f
+    val pillB  = pillT + pillH
+    val pillL  = w * 0.04f
+    val pillR  = w - pillL
+    val pillW  = pillR - pillL
+    val pillCR = pillH / 2f
+    val step   = pillH * 0.034f    // shadow step — wider spread for softer blur
+
+    // Drop shadow: dark, bottom offset, 5 layers
+    for (i in 5 downTo 1) {
+        val off = i * step
+        drawRoundRect(
+            color        = neuDark.copy(alpha = (0.022f - (5 - i) * 0.0045f).coerceAtLeast(0f)),
+            topLeft      = Offset(pillL, pillT + off),
+            size         = Size(pillW, pillH),
+            cornerRadius = CornerRadius(pillCR)
+        )
     }
-
-    // ── Shadow — soft ellipse beneath the dial, gives "placed on field" look ──
-    // Drawn outside clip path so it spreads beyond the dial edges
-    drawOval(
-        brush   = Brush.radialGradient(
-            colors  = listOf(Color(0f, 0f, 0f, 0.28f), Color(0f, 0f, 0f, 0f)),
-            center  = Offset(cx, botY + ry * 0.6f),
-            radius  = rx * 1.05f
-        ),
-        topLeft = Offset(cx - rx * 1.05f, botY - ry * 0.8f),
-        size    = Size(rx * 2.1f, ry * 4.0f)
+    // Highlight shadow: white, top offset, 5 layers
+    for (i in 5 downTo 1) {
+        val off = i * step
+        drawRoundRect(
+            color        = Color(1f, 1f, 1f, (0.14f - (5 - i) * 0.03125f).coerceAtLeast(0f)),
+            topLeft      = Offset(pillL, pillT - off),
+            size         = Size(pillW, pillH),
+            cornerRadius = CornerRadius(pillCR)
+        )
+    }
+    // Pill fill — white border ring
+    drawRoundRect(
+        color        = Color.White,
+        topLeft      = Offset(pillL, pillT),
+        size         = Size(pillW, pillH),
+        cornerRadius = CornerRadius(pillCR)
     )
 
-    // ── Cylinder body — matte horizontal gradient ──────────────────────
-    // Edges are still dark (curvature) but the overall range is more compressed
-    // compared to a shiny finish — less contrast = matte look
-    val bodyGrad = Brush.horizontalGradient(
-        colorStops = arrayOf(
-            0.00f to Color(0xFF848078.toInt()),
-            0.07f to Color(0xFFAEA89E.toInt()),
-            0.16f to Color(0xFFCEC9BC.toInt()),
-            0.28f to Color(0xFFDEDACC.toInt()),
-            0.42f to Color(0xFFE8E3D5.toInt()),
-            0.50f to Color(0xFFECE7D8.toInt()),   // centre — only mildly brighter
-            0.58f to Color(0xFFE8E3D5.toInt()),
-            0.72f to Color(0xFFDAD5C6.toInt()),
-            0.84f to Color(0xFFCAC5B6.toInt()),
-            0.93f to Color(0xFFAEA89E.toInt()),
-            1.00f to Color(0xFF848078.toInt()),
-        ),
-        startX = cx - rx, endX = cx + rx
-    )
-    clipPath(bodyPath) {
-        drawRect(brush = bodyGrad, topLeft = Offset(cx - rx, topY - ry), size = Size(rx * 2f, bodyH + ry * 2f))
+    // ── Barrel geometry ───────────────────────────────────────────────────
+    val bInset = 12f * density   // 12 dp — outer white border width
+    val bL  = pillL + bInset;  val bT = pillT + bInset
+    val bR  = pillR - bInset;  val bB = pillB - bInset
+    val bW  = bR - bL;         val bH = bB - bT
+    val bCR = (pillCR - bInset).coerceAtLeast(0f)
+
+    val barrelPath = Path().apply {
+        addRoundRect(RoundRect(bL, bT, bR, bB, CornerRadius(bCR)))
     }
 
-    // ── Knurling ridges — matte calibration ───────────────────────────
-    // Highlights are softer than a polished surface
-    val numKnurls = 100
-    clipPath(bodyPath) {
-        for (k in 0 until numKnurls) {
-            val theta = (k.toFloat() / numKnurls) * 2f * PI.toFloat() + rotRad
-            val cosT  = cos(theta)
-            if (cosT < 0.04f) continue
+    // ── Metallic rim ring (rim-metallic, p-[2px] equivalent) ─────────────
+    // Drawn as a filled shape slightly larger than the barrel.
+    // The barrel clip will overdraw its interior — leaving a 2dp metallic ring visible.
+    val rimThick = 2f * density   // 2 dp
+    drawRoundRect(
+        brush        = Brush.linearGradient(
+            colorStops = arrayOf(
+                0.00f to Color(0xFFD8CDBC.toInt()),
+                0.22f to Color(0xFF705E44.toInt()),
+                0.50f to Color(0xFF483A28.toInt()),
+                0.78f to Color(0xFF806A4C.toInt()),
+                1.00f to Color(0xFFE0D6C6.toInt()),
+            ),
+            start = Offset(bL - rimThick, bT - rimThick),
+            end   = Offset(bR + rimThick, bB + rimThick)
+        ),
+        topLeft      = Offset(bL - rimThick, bT - rimThick),
+        size         = Size(bW + rimThick * 2f, bH + rimThick * 2f),
+        cornerRadius = CornerRadius(bCR + rimThick)
+    )
+    // Drop shadow on rim (shadow-[0_2px_4px_rgba(0,0,0,0.25)])
+    drawRoundRect(
+        color        = Color(0f, 0f, 0f, 0.10f),
+        topLeft      = Offset(bL - rimThick + 1f, bT - rimThick + 3f * density),
+        size         = Size(bW + rimThick * 2f - 2f, bH + rimThick * 2f),
+        cornerRadius = CornerRadius(bCR + rimThick)
+    )
 
-            val xPos = cx + rx * cosT
-            if (xPos < cx - rx + 1.5f || xPos > cx + rx - 1.5f) continue
+    // ── Everything inside the barrel clip ─────────────────────────────────
+    clipPath(barrelPath) {
 
-            // Matte: crest highlight max ~48% vs 74% on polished
-            val hiliteA = (cosT * 0.38f + 0.06f).coerceIn(0f, 0.48f)
+        // ── Layer 1: Pillow surface (gradient-pillow) ─────────────────────
+        drawRect(
+            brush   = Brush.verticalGradient(
+                colorStops = arrayOf(
+                    0.00f to backgroundColor,
+                    0.38f to backgroundColor,
+                    0.72f to Color(0xFFF0EAD8.toInt()),
+                    1.00f to Color(0xFFEDE4D4.toInt()),
+                ),
+                startY = bT, endY = bB
+            ),
+            topLeft = Offset(bL, bT), size = Size(bW, bH)
+        )
+        // Inner barrel top-bright / bottom-dark (shadow-neu-in)
+        drawRect(
+            brush   = Brush.verticalGradient(
+                colors = listOf(Color(1f, 1f, 1f, 0.36f), Color.Transparent),
+                startY = bT, endY = bT + bH * 0.20f
+            ),
+            topLeft = Offset(bL, bT), size = Size(bW, bH * 0.20f)
+        )
+        drawRect(
+            brush   = Brush.verticalGradient(
+                colors = listOf(Color.Transparent, neuDark.copy(alpha = 0.19f)),
+                startY = bB - bH * 0.24f, endY = bB
+            ),
+            topLeft = Offset(bL, bB - bH * 0.24f), size = Size(bW, bH * 0.24f)
+        )
+
+        // ── Layer 2: Horizontal ribs ──────────────────────────────────────
+        // CSS: repeating-linear-gradient(0deg, dark/0.4 0 1px, transparent 1px 10px)
+        //      mask-image: radial-gradient(ellipse at center, black 55%, transparent 92%)
+        //      opacity: 0.18, mix-blend-multiply
+        val ribSpacing = bH * 0.092f
+        val nRibs      = (bH / ribSpacing + 2).toInt()
+        val ribMaxAlpha = 0.085f
+        for (r in 0..nRibs) {
+            val y         = bT + r * ribSpacing
+            // Vertical component of ellipse mask (Y distance from center, 0–1)
+            val distY     = abs(y - (bT + bH / 2f)) / (bH / 2f)
+            // CSS ellipse mask: full opacity inside 55% radius, fades to 0 at 92%
+            val maskY = when {
+                distY < 0.55f -> 1f
+                distY > 0.92f -> 0f
+                else          -> 1f - (distY - 0.55f) / (0.92f - 0.55f)
+            }
+            if (maskY <= 0f) continue
             drawLine(
-                color       = Color(1f, 0.99f, 0.95f, hiliteA),
-                start       = Offset(xPos, topY + ry * 1.2f),
-                end         = Offset(xPos, botY - ry * 0.6f),
-                strokeWidth = 0.9f
-            )
-            // Valley shadow — also softer
-            val valleyA = (cosT * 0.12f).coerceIn(0f, 0.16f)
-            drawLine(
-                color       = Color(0f, 0f, 0f, valleyA),
-                start       = Offset(xPos + 2.2f, topY + ry * 1.2f),
-                end         = Offset(xPos + 2.2f, botY - ry * 0.6f),
-                strokeWidth = 1.8f
+                color       = neuDark.copy(alpha = ribMaxAlpha * maskY),
+                start       = Offset(bL + bW * 0.04f, y),
+                end         = Offset(bR - bW * 0.04f, y),
+                strokeWidth = 1f
             )
         }
-    }
 
-    // ── Edge darkening — sides curve away ─────────────────────────────
-    clipPath(bodyPath) {
+        // ── Layer 3: Center selection window ─────────────────────────────
+        // CSS: top-3 bottom-3 (3px inset each side), w-[140px], rounded-full
+        // → nearly full barrel height, fixed width ≈ barrel-height × 1.1 (landscape pill)
+        val wInset = bH * 0.12f           // visible gap between window and metallic rim
+        val wH     = bH - wInset * 2f     // almost full barrel height
+        val wW     = wH * 2.12f           // wide landscape pill
+        val wCX    = (bL + bR) / 2f
+        val wCY    = (bT + bB) / 2f
+        val wL     = wCX - wW / 2f
+        val wTop   = wCY - wH / 2f
+        val wBot   = wCY + wH / 2f
+        val wCR    = wH / 2f              // full pill rounding on short ends
+
+        val windowPath = Path().apply {
+            addRoundRect(RoundRect(wL, wTop, wL + wW, wBot, CornerRadius(wCR)))
+        }
+
+        // Window fill — CSS: linear-gradient(180deg, L=0.92 0%, L=0.96 50%, L=0.99 100%)
+        // = warm-slightly-dark at top → near-white at bottom
+        drawPath(
+            path  = windowPath,
+            brush = Brush.verticalGradient(
+                colorStops = arrayOf(
+                    0.0f to surfaceDn.copy(alpha = 0.85f),
+                    0.5f to backgroundColor,
+                    1.0f to surfaceUp.copy(alpha = 0.85f),
+                ),
+                startY = wTop, endY = wBot
+            )
+        )
+        // Window: inset bottom shadow + bottom highlight
+        clipPath(windowPath) {
+            drawRect(
+                brush   = Brush.verticalGradient(
+                    colors = listOf(Color.Transparent, neuDark.copy(alpha = 0.20f)),
+                    startY = wBot - wH * 0.32f, endY = wBot
+                ),
+                topLeft = Offset(wL, wBot - wH * 0.32f), size = Size(wW, wH * 0.32f)
+            )
+            // Bottom highlight
+            drawRect(
+                brush   = Brush.verticalGradient(
+                    colors = listOf(Color.Transparent, Color(1f, 1f, 1f, 0.65f)),
+                    startY = wBot - wH * 0.22f, endY = wBot
+                ),
+                topLeft = Offset(wL, wBot - wH * 0.22f), size = Size(wW, wH * 0.22f)
+            )
+        }
+        // Window border
+        drawRoundRect(
+            color        = neuDark.copy(alpha = 0.18f),
+            topLeft      = Offset(wL, wTop),
+            size         = Size(wW, wH),
+            cornerRadius = CornerRadius(wCR),
+            style        = Stroke(width = 1f)
+        )
+        // Window outer bottom highlight — spans only the straight section of the pill
+        drawLine(
+            color       = Color(1f, 1f, 1f, 0.65f),
+            start       = Offset(wL + wCR, wBot + 1.2f),
+            end         = Offset(wL + wW - wCR, wBot + 1.2f),
+            strokeWidth = 1.2f, cap = StrokeCap.Round
+        )
+
+        // ── Layer 4: Item labels — clipped to center pill ────────────────
+        clipPath(windowPath) {
+            if (items.isNotEmpty()) {
+                val fractIdx = normalizedValue * (items.size - 1)
+                val spacing  = wW * 0.5f
+
+                for (i in items.indices) {
+                    val relPos  = i.toFloat() - fractIdx
+                    if (abs(relPos) > 2.8f) continue
+
+                    val xCenter = wCX + relPos * spacing
+                    if (xCenter < wL - wW || xCenter > wL + wW * 2f) continue
+
+                    val dist    = abs(relPos)
+                    val isFocal = dist < 0.5f
+                    val alpha   = (1f - dist * 0.58f).coerceIn(0f, 1f)
+
+                    val result = textMeasurer.measure(
+                        text  = items[i],
+                        style = TextStyle(
+                            fontFamily = trocchiFamily,
+                            fontSize   = if (isFocal) 16.sp else 11.sp,
+                            fontWeight = if (isFocal) FontWeight.SemiBold else FontWeight.Normal,
+                            fontStyle  = if (isFocal) FontStyle.Italic else FontStyle.Normal,
+                            color      = (if (isFocal) rimAccent else mutedFg).copy(alpha = alpha),
+                        )
+                    )
+                    drawText(
+                        textLayoutResult = result,
+                        topLeft = Offset(
+                            x = xCenter - result.size.width  / 2f,
+                            y = wCY    - result.size.height / 2f,
+                        )
+                    )
+                }
+            }
+        }
+
+        // ── Layer 5: Side fades — last, covers item edges ─────────────────
+        // CSS: bg-gradient-to-r from-[oklch(0.9_0.025_70_/_0.7)]  (left)
+        //       bg-gradient-to-l from-[oklch(0.9_0.025_70_/_0.7)]  (right)
+        val fadeW = bW * 0.09f
         drawRect(
             brush   = Brush.horizontalGradient(
-                colors  = listOf(Color(0f, 0f, 0f, 0.35f), Color(0f, 0f, 0f, 0f)),
-                startX  = cx - rx, endX = cx - rx * 0.80f
+                colors = listOf(backgroundColor, Color.Transparent),
+                startX = bL, endX = bL + fadeW
             ),
-            topLeft = Offset(cx - rx, topY), size = Size(rx * 0.20f, bodyH)
+            topLeft = Offset(bL, bT), size = Size(fadeW, bH)
         )
         drawRect(
             brush   = Brush.horizontalGradient(
-                colors  = listOf(Color(0f, 0f, 0f, 0f), Color(0f, 0f, 0f, 0.35f)),
-                startX  = cx + rx * 0.80f, endX = cx + rx
+                colors = listOf(Color.Transparent, backgroundColor),
+                startX = bR - fadeW, endX = bR
             ),
-            topLeft = Offset(cx + rx * 0.80f, topY), size = Size(rx * 0.20f, bodyH)
+            topLeft = Offset(bR - fadeW, bT), size = Size(fadeW, bH)
         )
     }
 
-    // ── Bottom fade — dial dissolves at base instead of having a hard cap ─
-    clipPath(bodyPath) {
-        drawRect(
-            brush   = Brush.verticalGradient(
-                colors  = listOf(Color(0f, 0f, 0f, 0f), Color(0f, 0f, 0f, 0.72f)),
-                startY  = botY - bodyH * 0.30f, endY = botY + ry
-            ),
-            topLeft = Offset(cx - rx, botY - bodyH * 0.30f),
-            size    = Size(rx * 2f, bodyH * 0.30f + ry)
-        )
-    }
-
-    // ── Top cap — narrow cream ellipse, barely visible ─────────────────
-    drawOval(
-        brush   = Brush.radialGradient(
-            colors  = listOf(Color(0xFFF2EDE2.toInt()), Color(0xFFD8D3C7.toInt())),
-            center  = Offset(cx, topY),
-            radius  = rx * 1.1f
-        ),
-        topLeft = Offset(cx - rx, topY - ry),
-        size    = Size(rx * 2f, ry * 2f)
-    )
-
-    // Radial brushed-metal lines on top
-    for (i in 0 until 80) {
-        val la    = (i.toFloat() / 80f) * 2f * PI.toFloat()
-        val alpha = if (i % 5 == 0) 0.11f else 0.048f
-        drawLine(
-            color       = Color(0.22f, 0.20f, 0.17f, alpha),
-            start       = Offset(cx + cos(la) * 5f,          topY + sin(la) * ry * 0.2f),
-            end         = Offset(cx + cos(la) * rx * 0.95f,  topY + sin(la) * ry * 0.95f),
-            strokeWidth = 0.55f
-        )
-    }
-
-    // ── Silver indicator line ──────────────────────────────────────────
-    val iCos = cos(rotRad); val iSin = sin(rotRad)
-    val indA = ((iCos + 0.25f) / 1.25f).coerceIn(0f, 1f)
-    if (indA > 0.05f) {
-        drawLine(
-            color       = Color(0.55f, 0.52f, 0.45f, indA * 0.85f),
-            start       = Offset(cx + iCos * 6f,         topY + iSin * ry * 0.22f),
-            end         = Offset(cx + iCos * rx * 0.87f, topY + iSin * ry * 0.87f),
-            strokeWidth = 2.4f, cap = StrokeCap.Round
-        )
-    }
-
-    // ── Matte rim — very faint arc at the top edge (no glare) ─────────
-    drawArc(
-        color        = Color(1f, 1f, 0.97f, 0.22f),   // was 0.70 on polished
-        startAngle   = 185f, sweepAngle = 170f, useCenter = false,
-        topLeft      = Offset(cx - rx, topY - ry), size = Size(rx * 2f, ry * 2f),
-        style        = Stroke(width = 1.6f, cap = StrokeCap.Round)
-    )
-
-    // ── Top AO — faint darkening just below the rim ────────────────────
-    clipPath(bodyPath) {
-        drawRect(
-            brush   = Brush.verticalGradient(
-                colors  = listOf(Color(0f, 0f, 0f, 0.12f), Color(0f, 0f, 0f, 0f)),
-                startY  = topY, endY = topY + bodyH * 0.07f
-            ),
-            topLeft = Offset(cx - rx, topY), size = Size(rx * 2f, bodyH * 0.07f)
-        )
-    }
+    // No explicit rim stroke — gradient contrast between barrel and outer border suffices.
 }

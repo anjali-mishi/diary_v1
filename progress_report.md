@@ -80,15 +80,53 @@ We have successfully completed **Phases 1 through 9**, fully realizing the funct
 
 ---
 
+---
+
+### 🎛 IndexScreen — Sentiment Dial Redesign (Post Phase 14)
+
+The `IndexScreen` was fully redesigned from a bento/timeline grid into a **sentiment-driven memory browser** with three custom components:
+
+#### DialKnob (custom Canvas component)
+*   Skeuomorphic radio-dial rendered entirely in `DrawScope` — no images, no XML.
+*   Barrel + center pill geometry: pill height = 76% barrel height, pill width = `wH × 2.12`.
+*   Multi-layer shadow simulation (5 dark layers bottom-offset, 5 light layers top-offset) since `DrawScope` has no `BlurMaskFilter`.
+*   Metallic rim as a filled ring with 5-stop gradient, cut by barrel clip.
+*   Horizontal ribs: sine-mask + ellipse-mask fade, `ribMaxAlpha = 0.085`, 1px stroke.
+*   Center pill: semi-transparent vertical gradient (`surfaceDn → backgroundColor → surfaceUp`), inset bottom shadow, `neuDark @ 0.18α` border, white highlight line.
+*   Sentiment carousel inside pill: clipped to pill, Trocchi Italic 16sp focal / 11sp side, alpha `1 − dist × 0.58`.
+*   `indexDialValue: Float` hoisted to `DiaryViewModel` so dial position survives navigation and config changes.
+
+#### PolaroidPillCard (new composable)
+*   82dp tall row with a 58×68dp polaroid thumbnail (2dp radius, `appleShadow`) + text column.
+*   Fixed per-card decorative tilt via `remember(index)` — deterministic, not state-driven.
+*   All cards equal visual weight — no focal dimming or alpha animation.
+*   Fallback (no photo): Option C — date as art (`"MMM\nd"`) in Trocchi Bold 18sp, emotion color on 25% washed background.
+*   Primary text: nunitoFamily, 16sp Regular, 1 line ellipsis, `onBackground` color.
+*   Date: `labelSmall`, `#8E8A86` (design secondary).
+*   Shadow: `appleShadow(cornerRadius = 2.dp)` — aligns with soft-shadow design language.
+
+#### DotRailTimeline (new composable)
+*   Canvas-drawn horizontal dot rail scrubber.
+*   Rail always visible (even when 0 memories match sentiment — shows empty rail without dots).
+*   Focal dot: 5dp radius, full `#2C2A29`; others: 3dp, 28% alpha.
+*   `detectDragGestures` drives `carouselFractIdx` → `LaunchedEffect` scrolls `LazyColumn` to focal item.
+
+#### IndexScreen layout
+*   Sentiment gradient: full-screen top-bleed via `graphicsLayer { translationY = -topBleedPx }` so gradient extends behind the transparent TopAppBar into the status bar.
+*   Bottom 280dp zone: DotRailTimeline (full-width, end=60dp) + Shuffle button (brand gradient `#FF9966→#FF6699`, always `TopEnd` pinned) + DialKnob (top=40dp, height=155dp).
+*   360dp fade gradient dissolves list into timeline zone.
+*   List top padding 8dp — no wasted empty space.
+
+---
+
 ## 3. The Path Forward (Current Objective)
 
-**Phases 1–14 and all post-phase polish are complete.** The core product — capture, playback, bento grid, memory detail with shared transitions, sentiment analysis — is fully functional and visually refined.
+**Phases 1–14, all post-phase polish, and the IndexScreen sentinel dial redesign are complete.**
 
 ### Next Phase — Smarter Sentiment + Index Filters (Phase A):
 *   Task 59: DB Migration 2→3 (expanded schema: emotion intensity, bookmarks, stickers, letters)
 *   Task 60: HuggingFace Inference API sentiment analysis (replaces keyword detector, with fallback)
-*   Task 61: IndexScreen timeline layout
-*   Task 62: Emotion filter chips
+*   Tasks 61–62 superseded by the new DialKnob-driven IndexScreen (already shipped)
 
 > [!TIP]
 > **Developer Goal**

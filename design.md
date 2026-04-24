@@ -21,6 +21,16 @@ This document defines the foundational visual language for the Memory App. It se
     - Applied to: "Save memory" button fill, FABs, waveform bars, gradient strip above bottom sheet, action chips active states, and any other primary interactive surface.
     - Replaces the previous flat `#2C2A29` accent for all interactive elements.
 
+### Emotional Color Variants
+Each emotion has two usage modes:
+
+| Variant | Alpha | Usage |
+|---|---|---|
+| **Full** | None (1.0) | Text labels, icon tints, focal accent strokes, date text |
+| **Washed** | 0.20 – 0.25 | Screen background gradients, card fill tints, polaroid fallback backgrounds |
+
+Using the full color as a solid block background is forbidden (see note below). Washed variants blend with the warm paper background to stay readable and non-aggressive.
+
 ### Emotional Colors (Background Gradients)
 **Crucial UI Note:** These colors should NOT be used as solid blocks. They must be implemented as an **extreme blurred, soft gradient** (custom background) behind the memory content, blending with the Apple Glass elevation.
 
@@ -34,6 +44,7 @@ This document defines the foundational visual language for the Memory App. It se
 ## Shapes & Radii
 *   **Buttons (FABs, Action Icons):** 100% radius (Perfect circles/pills)
 *   **Memory Cards / Containers:** `20dp` radius
+*   **Small decorative cards (e.g., polaroid thumbnails, inline media chips):** `2dp` radius — intentional exception to the 20dp rule. Smaller surfaces get proportionally smaller radii so corners don't dominate the shape.
 
 ## Elevation & Shadows
 *   **Style:** Soft, diffused Apple-style drop shadows. 
@@ -69,6 +80,16 @@ Three variants are selected automatically based on which media is attached to th
 *   **Headline:** 20sp, `FontWeight.Bold`, Trocchi — first sentence of the entry (split at `.`, `!`, `?`, or `\n`), max 2 lines.
 *   **Body:** 16sp, SF Pro Rounded, 70% opacity — remainder of the entry, max 2 lines with ellipsis.
 *   **Date label:** `labelSmall`, secondary colour at 60% opacity.
+
+## List Components
+
+### Vertical Scroll List (IndexScreen / PolaroidPillList)
+*   **Height:** Natural — the list height equals the sum of all item heights plus spacing. No fixed container height.
+*   **Items:** `PolaroidPillCard` — 82dp tall, full width with `16dp` horizontal padding.
+*   **Spacing:** `4dp` between items.
+*   **Fade-out:** A `360dp` vertical gradient at the bottom dissolves the list into the timeline zone (`Color.Transparent → background`).
+*   **Empty state:** When no memories match the selected sentiment, render the dot-rail timeline without dots (just the rail line) so the timeline chrome is always visible.
+*   **Scroll behaviour:** Driven by `DotRailTimeline` scrubber — `animateScrollToItem(focalIdx)` on focal index change.
 
 ### Waveform (Audio Cards)
 *   30 bars rendered as a `Canvas` using the brand accent gradient (`#FF9966` → `#FF6699`).
