@@ -86,10 +86,13 @@ The simplest version:
   - Audio player (if recorded)
   - Emotional color indicator (auto-detected)
 
-**Index View:**
-- Accessible browsing mechanism to jump between memories
-- Like a book's table of contents
-- Quick navigation through time periods
+**Index View ("My Diaries"):**
+- Sentiment-driven memory browser — a skeuomorphic radio DialKnob selects one of 6 emotional tones; the list shows only memories matching that sentiment
+- Polaroid thumbnail list: each memory shown as a compact 82dp row with a tilted polaroid card + memory snippet + date
+- Horizontal DotRailTimeline scrubber below the list for jumping between memories within the filtered set
+- Shuffle button (brand gradient) randomises the order of filtered memories
+- Sentiment gradient bleeds from top of screen downward, tinted to the selected emotion
+- Dial position persists across navigation (returning from a detail screen lands back on the same sentiment)
 
 **Visual Treatment:**
 - Different moods have different colors (auto-detected from text/context)
@@ -320,22 +323,22 @@ enum class EmotionalTone {
 - Option to compress only if user runs into storage issues (future consideration)
 
 ### 5. Index Navigation
-**List of dates with memory titles:**
+**Sentiment-filtered polaroid list (current implementation):**
 ```
-📅 February 15, 2026
-   └ "Morning coffee thoughts"
-   └ "Call with Mom"
+[DialKnob — Happy / Calm / Excited / Anxious / Sad / Neutral]
 
-📅 February 14, 2026
-   └ "Valentine's Day dinner"
+● Mar 12  "Had the best coffee today..."
+● Feb 28  "Sunday felt really easy..."
+● Feb 14  "Valentine's dinner was perfect..."
 
-📅 February 13, 2026
-   └ "Work presentation nerves"
-   └ "Evening walk"
+[●─────────────●──────────────────] [🔀]
+[         DialKnob                        ]
 ```
-- Each memory needs a "key title" (user-defined or auto-generated from first line)
-- Tap date → jump to first memory of that day
-- Tap specific memory title → jump directly to that memory
+- DialKnob snaps to one of 6 sentiments; list filters to memories with that emotional tone
+- DotRailTimeline: one dot per memory, drag to scrub; auto-scrolls list to focal memory
+- Tap any row → MemoryDetailScreen
+- Long-press row → Edit / Delete dialog
+- Dial state persists across navigation via `DiaryViewModel.indexDialValue`
 
 ---
 

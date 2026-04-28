@@ -1,7 +1,9 @@
 # Memory App MVP: Progress & Strategy Report
 
 > [!NOTE]
-> This document provides a comprehensive overview of our development journey up to the current state. It summarizes our core strategy, the process we adhered to, all completed milestones, and our immediate next steps toward achieving a premium user experience.
+> **Purpose:** This is a living content document — written to support storytelling, retrospectives, and creator content (posts, threads, case studies) about how this app was built. Update it after each meaningful sprint so there's always a ready-to-publish snapshot of the journey.
+>
+> It also provides Claude with a comprehensive overview of the development journey: our core strategy, completed milestones, and immediate next steps toward a premium user experience.
 
 ## 1. Our Process & Collaborative Strategy
 
@@ -16,7 +18,7 @@ Our execution strategy has been rooted in disciplined, document-driven developme
 
 ## 2. All That We've Done (Completed Milestones)
 
-We have successfully completed **Phases 1 through 8**, fully realizing the functional requirements of the MVP.
+We have successfully completed **Phases 1 through 9**, fully realizing the functional MVP and the premium entry-point experience.
 
 ### 🏗 Foundation & Architecture (Phases 1-2)
 *   Initialized a clean Android Studio project using **Kotlin** and **Jetpack Compose**.
@@ -41,16 +43,91 @@ We have successfully completed **Phases 1 through 8**, fully realizing the funct
 *   Refactored temporary URI media storage into persistent internal app storage to ensure images don't break over time.
 *   Overrode default Material 3 tokens to strictly adhere to our custom `design.md` typography and soft-shadow aesthetics.
 
+### ✨ Premium Entry Point (Phase 9)
+*   **Persistent Bottom Sheet:** Replaced the FAB with a persistent sheet anchored at the bottom 15% of `DiaryScreen` — always visible, never dismissible.
+*   **Smart Tap Zones:** Each zone on the sheet initiates a distinct flow — tapping the text prompt auto-focuses the keyboard, tapping the mic auto-starts recording, tapping the image icon auto-opens the photo picker. Action is passed through the nav route and handled via `LaunchedEffect` in `CaptureScreen`.
+*   **Bottom-to-Top Slide Animation:** `CaptureScreen` slides in from the bottom using Compose Navigation's `enterTransition`/`exitTransition` for a native sheet-like feel.
+*   **Gradient Strip:** A 30dp soft orange→pink gradient overlaid immediately above the sheet for a polished visual boundary.
+*   **Structured Logging:** Added `Diary.*` Logcat tags across all layers (Navigation, ViewModels, Repository, Database, AudioPlayer, AudioRecorder, EmotionDetector, ImageStorage) for full observability during debugging.
+
+---
+
+### 🎙 Waveform Recording & Playback (Phase 11 — Tasks 41–43)
+
+*   **Spotify-Style Full-Screen Recording Mode (Task 41a–d):** When recording begins, the entire `CaptureScreen` is replaced by a full-screen recording overlay split 60/40. The top 60% shows a "● Recording" indicator row and a large bold `M:SS` elapsed timer. The bottom 40% hosts a smooth filled bezier wave (7 control points, lerp-animated at factor 0.18 toward targets that refresh every ~500ms) in the brand gradient at 15% alpha. A 64dp red circular FAB at the bottom stops recording.
+*   **Waveform Data Persistence (Task 42):** Amplitude samples are accumulated in a `mutableStateListOf<Float>` during the 100ms poll loop. On stop, they are JSON-encoded as `"[f0,f1,…]"` and saved to a new `waveformData: String?` column on the `Memory` Room entity (schema v2, migration provided).
+*   **Waveform Playback with Animated Playhead (Task 43):** Both the DiaryScreen memory card and the CaptureScreen audio preview now render the stored waveform as 4dp bottom-aligned bars (orange→pink gradient) when `waveformData` is available. A white vertical playhead advances across the bars via `AudioPlayer.currentPosition / duration` polled at 100ms. Old entries without waveform data fall back to the "Voice Memo" text row. The play/stop icon now correctly shows `Pause` while audio is playing.
+
+---
+
+### 🎨 Visual Polish & Branding (Phase 12 — Tasks 44–48)
+
+*   **Bottom Sheet Placeholder (Task 44):** Placeholder text "What's on your mind?" is left-aligned (text-start) and vertically centred within the sheet using `Box(contentAlignment = Alignment.CenterStart)`. Rounded top corners were already in place.
+*   **Brand Gradient App-Wide (Task 45):** `#FF9966 → #FF6699` horizontal gradient is now the fill for all primary interactive surfaces. Applied to the "Save memory" button and Mic/Photo FABs via `Modifier.background(Brush.horizontalGradient(...))` with `containerColor = Transparent` and white icons. Gradient strip and waveform bars already matched — confirmed.
+*   **Memory Card Date Font (Task 46):** Card timestamps now render in `MaterialTheme.typography.bodySmall` (SF Pro Rounded) instead of Trocchi/Playwrite.
+*   **Trocchi Font (Task 47):** `trocchi_regular.ttf` (OFL, Google Fonts) bundled in `res/font/`. `playwriteFamily` fully removed; `trocchiFamily` now covers all display/headline/titleLarge tokens in `Type.kt`. Inline reference in `IndexScreen` date headers also updated.
+*   **Center-Aligned Entry Text (Task 48):** `BasicTextField` in `CaptureScreen` uses `textAlign = TextAlign.Center` in its `textStyle`. Placeholder `"I remember..."` matches. No other screens affected.
+
+---
+
+---
+
+### 🪟 Memory Detail Screen Polish (Post Phase 14)
+
+*   **Floating Nav Button Restyle:** Back and edit buttons on `MemoryDetailScreen` upgraded from translucent dark circles to white circles with `appleShadow()` drop shadow and near-black (`#1C1C1E`) icons — consistent with the app's premium light-surface aesthetic.
+*   **Text-Only Content Offset:** The text hero `LazyColumn` on text-only memories now receives `statusBarsPadding() + padding(top = 56.dp)`, pushing body text cleanly below the floating nav buttons instead of rendering behind them.
+*   **Shared Transition Abrupt Fade Fix:** Diagnosed and eliminated a recurring abrupt cut at the end of the card→detail close animation caused by four compounding issues: (1) spring settling time (~630ms) too close to the nav scope deadline (700ms), (2) asymmetric exit specs across both sharedBounds sides, (3) overlapping AnimatedVisibilityScope state when the user re-opened a card before the 700ms scope expired, (4) gradient background Box disappearing instantly on frame 1 of every close. Fixed by replacing all springs with deterministic tweens (400ms fade / 500ms bounds, `FastOutSlowInEasing`), tightening the DiaryScreen `popEnterTransition` scope to 600ms, and adding `popExitTransition = fadeOut(tween(400))` to the Detail route so the gradient fades gracefully instead of snapping.
+
+---
+
+---
+
+### 🎛 IndexScreen — Sentiment Dial Redesign (Post Phase 14)
+
+The `IndexScreen` was fully redesigned from a bento/timeline grid into a **sentiment-driven memory browser** with three custom components:
+
+#### DialKnob (custom Canvas component)
+*   Skeuomorphic radio-dial rendered entirely in `DrawScope` — no images, no XML.
+*   Barrel + center pill geometry: pill height = 76% barrel height, pill width = `wH × 2.12`.
+*   Multi-layer shadow simulation (5 dark layers bottom-offset, 5 light layers top-offset) since `DrawScope` has no `BlurMaskFilter`.
+*   Metallic rim as a filled ring with 5-stop gradient, cut by barrel clip.
+*   Horizontal ribs: sine-mask + ellipse-mask fade, `ribMaxAlpha = 0.085`, 1px stroke.
+*   Center pill: semi-transparent vertical gradient (`surfaceDn → backgroundColor → surfaceUp`), inset bottom shadow, `neuDark @ 0.18α` border, white highlight line.
+*   Sentiment carousel inside pill: clipped to pill, Trocchi Italic 16sp focal / 11sp side, alpha `1 − dist × 0.58`.
+*   `indexDialValue: Float` hoisted to `DiaryViewModel` so dial position survives navigation and config changes.
+
+#### PolaroidPillCard (new composable)
+*   82dp tall row with a 58×68dp polaroid thumbnail (2dp radius, `appleShadow`) + text column.
+*   Fixed per-card decorative tilt via `remember(index)` — deterministic, not state-driven.
+*   All cards equal visual weight — no focal dimming or alpha animation.
+*   Fallback (no photo): Option C — date as art (`"MMM\nd"`) in Trocchi Bold 18sp, emotion color on 25% washed background.
+*   Primary text: nunitoFamily, 16sp Regular, 1 line ellipsis, `onBackground` color.
+*   Date: `labelSmall`, `#8E8A86` (design secondary).
+*   Shadow: `appleShadow(cornerRadius = 2.dp)` — aligns with soft-shadow design language.
+
+#### DotRailTimeline (new composable)
+*   Canvas-drawn horizontal dot rail scrubber.
+*   Rail always visible (even when 0 memories match sentiment — shows empty rail without dots).
+*   Focal dot: 5dp radius, full `#2C2A29`; others: 3dp, 28% alpha.
+*   `detectDragGestures` drives `carouselFractIdx` → `LaunchedEffect` scrolls `LazyColumn` to focal item.
+
+#### IndexScreen layout
+*   Sentiment gradient: full-screen top-bleed via `graphicsLayer { translationY = -topBleedPx }` so gradient extends behind the transparent TopAppBar into the status bar.
+*   Bottom 280dp zone: DotRailTimeline (full-width, end=60dp) + Shuffle button (brand gradient `#FF9966→#FF6699`, always `TopEnd` pinned) + DialKnob (top=40dp, height=155dp).
+*   360dp fade gradient dissolves list into timeline zone.
+*   List top padding 8dp — no wasted empty space.
+
 ---
 
 ## 3. The Path Forward (Current Objective)
 
-We are now officially entering **Phase 9: Premium UI**. The foundation is rock solid, and our strategy now shifts purely toward "Wow Factor" mechanics that elevate the app from standard to premium.
+**Phases 1–14, all post-phase polish, and the IndexScreen sentinel dial redesign are complete.**
 
-### Upcoming Tasks:
-*   **The Instagram-Style Detail Screen:** Transitioning away from simple card tap-to-edit. Tapping a memory will now open a massive, immersive detail view where the photo or an animated mood-gradient occupies 70% of the screen.
-*   **The Spotify-Style Audio Player:** Voice notes will no longer stop if you leave the screen. We are building a persistent, liquid-glass bottom bar player that follows the user globally until they dismiss it.
+### Next Phase — Smarter Sentiment + Index Filters (Phase A):
+*   Task 59: DB Migration 2→3 (expanded schema: emotion intensity, bookmarks, stickers, letters)
+*   Task 60: HuggingFace Inference API sentiment analysis (replaces keyword detector, with fallback)
+*   Tasks 61–62 superseded by the new DialKnob-driven IndexScreen (already shipped)
 
 > [!TIP]
 > **Developer Goal**
-> As we dive into Phase 9, our strategy requires deliberate alignment. Before implementing the Spotify and Instagram-style view layouts, we will ensure all interactive gestures (swipe-to-dismiss vs. back buttons) and visual details (color pulses vs. parallax) are confirmed.
+> Phase A unlocks richer emotional context across the app. Plan collections (Phase B) and sealed letters after Phase A ships.

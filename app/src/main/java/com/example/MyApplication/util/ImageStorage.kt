@@ -2,9 +2,12 @@ package com.example.myapplication.util
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
+
+private const val TAG = "Diary.ImageStorage"
 
 object ImageStorage {
 
@@ -14,8 +17,12 @@ object ImageStorage {
      * If the URI is already a file path (not content://), returns it unchanged.
      */
     fun copyToInternalStorage(context: Context, uriString: String): String? {
-        if (!uriString.startsWith("content://")) return uriString // already a file path
+        if (!uriString.startsWith("content://")) {
+            Log.d(TAG, "copyToInternalStorage: already a file path, skipping copy")
+            return uriString
+        }
 
+        Log.d(TAG, "copyToInternalStorage: copying uri=$uriString")
         return try {
             val uri = Uri.parse(uriString)
             val photoDir = File(context.filesDir, "photos").also { it.mkdirs() }
@@ -26,9 +33,10 @@ object ImageStorage {
                     input.copyTo(output)
                 }
             }
+            Log.i(TAG, "copyToInternalStorage: success → ${destFile.absolutePath}")
             destFile.absolutePath
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "copyToInternalStorage: failed — ${e.message}", e)
             null
         }
     }

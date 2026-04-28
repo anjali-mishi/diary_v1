@@ -17,9 +17,16 @@ val MediumWarmGrey = Color(0xFF8E8A86)
 val AppleCardWhite = Color(0xFFFFFFFF)
 
 // Emotion Colors (Used as soft background gradients)
-val EmotionHappy = Color(0xFFFFD700)
+val EmotionHappy = Color(0xFFC9A84C)   // warm amber — matches emotionColor()
 val EmotionSad = Color(0xFF6B9BD1)
 val EmotionAnxious = Color(0xFF9B8BC6)
 val EmotionCalm = Color(0xFF7FB5A0)
 val EmotionExcited = Color(0xFFFF9F66)
 val EmotionNeutral = Color(0xFFD4C5B9)
+
+// Brand gradient (orange→pink, used on CTAs, waveform bars, mic/photo FABs)
+val GradientPeach = Color(0xFFFF9966)
+val GradientPink  = Color(0xFFFF6699)
+
+// Recording indicator
+val RecordingRed = Color(0xFFE53935)

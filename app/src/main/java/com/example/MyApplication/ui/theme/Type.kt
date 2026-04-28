@@ -9,8 +9,8 @@ import androidx.compose.ui.unit.sp
 import com.example.myapplication.R
 
 // Define Font Families
-val playwriteFamily = FontFamily(
-    Font(R.font.playwrite_osterreich, FontWeight.Normal)
+val trocchiFamily = FontFamily(
+    Font(R.font.trocchi_regular, FontWeight.Normal)
 )
 
 val nunitoFamily = FontFamily(
@@ -20,15 +20,15 @@ val nunitoFamily = FontFamily(
 
 // Complete mapping of all Material 3 typography styles to prevent Roboto fallback
 val Typography = Typography(
-    displayLarge = TextStyle(fontFamily = playwriteFamily, fontWeight = FontWeight.Normal, fontSize = 57.sp, lineHeight = 64.sp),
-    displayMedium = TextStyle(fontFamily = playwriteFamily, fontWeight = FontWeight.Normal, fontSize = 45.sp, lineHeight = 52.sp),
-    displaySmall = TextStyle(fontFamily = playwriteFamily, fontWeight = FontWeight.Normal, fontSize = 36.sp, lineHeight = 44.sp),
+    displayLarge = TextStyle(fontFamily = trocchiFamily, fontWeight = FontWeight.Normal, fontSize = 57.sp, lineHeight = 64.sp),
+    displayMedium = TextStyle(fontFamily = trocchiFamily, fontWeight = FontWeight.Normal, fontSize = 45.sp, lineHeight = 52.sp),
+    displaySmall = TextStyle(fontFamily = trocchiFamily, fontWeight = FontWeight.Normal, fontSize = 36.sp, lineHeight = 44.sp),
     
-    headlineLarge = TextStyle(fontFamily = playwriteFamily, fontWeight = FontWeight.Normal, fontSize = 32.sp, lineHeight = 40.sp),
-    headlineMedium = TextStyle(fontFamily = playwriteFamily, fontWeight = FontWeight.Normal, fontSize = 28.sp, lineHeight = 36.sp),
-    headlineSmall = TextStyle(fontFamily = playwriteFamily, fontWeight = FontWeight.Normal, fontSize = 24.sp, lineHeight = 32.sp),
+    headlineLarge = TextStyle(fontFamily = trocchiFamily, fontWeight = FontWeight.Normal, fontSize = 32.sp, lineHeight = 40.sp),
+    headlineMedium = TextStyle(fontFamily = trocchiFamily, fontWeight = FontWeight.Normal, fontSize = 28.sp, lineHeight = 36.sp),
+    headlineSmall = TextStyle(fontFamily = trocchiFamily, fontWeight = FontWeight.Normal, fontSize = 24.sp, lineHeight = 32.sp),
     
-    titleLarge = TextStyle(fontFamily = playwriteFamily, fontWeight = FontWeight.Normal, fontSize = 22.sp, lineHeight = 28.sp),
+    titleLarge = TextStyle(fontFamily = trocchiFamily, fontWeight = FontWeight.Normal, fontSize = 22.sp, lineHeight = 28.sp),
     titleMedium = TextStyle(fontFamily = nunitoFamily, fontWeight = FontWeight.Bold, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.15.sp),
     titleSmall = TextStyle(fontFamily = nunitoFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.1.sp),
     

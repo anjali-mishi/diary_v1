@@ -1,8 +1,17 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
+
+// Read HuggingFace API key from local.properties (never committed to VCS)
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) load(f.inputStream())
+}
+val huggingFaceApiKey: String = localProps.getProperty("HUGGINGFACE_API_KEY", "")
 
 android {
     namespace = "com.example.myapplication"
@@ -18,6 +27,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "HUGGINGFACE_API_KEY", "\"$huggingFaceApiKey\"")
     }
 
     buildTypes {
@@ -35,6 +46,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
