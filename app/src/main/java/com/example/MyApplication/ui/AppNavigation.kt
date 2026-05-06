@@ -191,16 +191,32 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                                 navArgument("action") { type = NavType.StringType; nullable = true }
                             ),
                             enterTransition = {
-                                slideInVertically(
-                                    initialOffsetY = { it },
-                                    animationSpec = tween(durationMillis = 400)
-                                ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                                val fromDetail = initialState.destination.route
+                                    ?.startsWith(Screen.Detail.name) == true
+                                if (fromDetail)
+                                    fadeIn(animationSpec = tween(durationMillis = 280))
+                                else
+                                    slideInVertically(
+                                        initialOffsetY = { it },
+                                        animationSpec = tween(durationMillis = 400)
+                                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
                             },
                             exitTransition = {
                                 slideOutVertically(
                                     targetOffsetY = { it },
                                     animationSpec = tween(durationMillis = 350)
                                 ) + fadeOut(animationSpec = tween(durationMillis = 250))
+                            },
+                            popExitTransition = {
+                                val toDetail = targetState.destination.route
+                                    ?.startsWith(Screen.Detail.name) == true
+                                if (toDetail)
+                                    fadeOut(animationSpec = tween(durationMillis = 280))
+                                else
+                                    slideOutVertically(
+                                        targetOffsetY = { it },
+                                        animationSpec = tween(durationMillis = 350)
+                                    ) + fadeOut(animationSpec = tween(durationMillis = 250))
                             }
                         ) { backStackEntry ->
                             val memoryId = backStackEntry.arguments?.getString("memoryId")
@@ -248,11 +264,20 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                                 navArgument("memoryId") { type = NavType.StringType }
                             ),
                             // sharedBounds drives geometry; nav-level enter/exit stay None
-                            // except popExitTransition which fades the gradient Box (outside
-                            // sharedBounds) smoothly instead of snapping it on frame 1.
+                            // except: → Capture fades both ways, popExit fades the gradient.
                             enterTransition    = { EnterTransition.None },
-                            exitTransition     = { ExitTransition.None },
-                            popEnterTransition = { EnterTransition.None },
+                            exitTransition     = {
+                                val toCapture = targetState.destination.route
+                                    ?.startsWith(Screen.Capture.name) == true
+                                if (toCapture) fadeOut(animationSpec = tween(durationMillis = 280))
+                                else ExitTransition.None
+                            },
+                            popEnterTransition = {
+                                val fromCapture = initialState.destination.route
+                                    ?.startsWith(Screen.Capture.name) == true
+                                if (fromCapture) fadeIn(animationSpec = tween(durationMillis = 280))
+                                else EnterTransition.None
+                            },
                             popExitTransition  = { fadeOut(animationSpec = tween(400)) }
                         ) { backStackEntry ->
                             val memoryId = backStackEntry.arguments?.getString("memoryId")

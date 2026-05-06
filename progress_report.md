@@ -131,3 +131,40 @@ The `IndexScreen` was fully redesigned from a bento/timeline grid into a **senti
 > [!TIP]
 > **Developer Goal**
 > Phase A unlocks richer emotional context across the app. Plan collections (Phase B) and sealed letters after Phase A ships.
+
+---
+
+## 4. Publishing Strategy & Revised Roadmap
+
+### Decision: Android First → React Native Rewrite
+
+**Goal:** Establish credibility as an independent product builder. Ship fast, validate with real users, then scale to iOS + web.
+
+**Phase 1 — Android Publish (~1 week):**
+- App is 95% complete. Remaining: keyword enrichment + Play Store setup.
+- Free app, no monetisation, no ads. "Proof of work" play.
+- Privacy story: local-only, no cloud, no tracking — a feature, not a limitation.
+
+**Phase 2 — React Native Rewrite (~3 weeks post-launch):**
+- Single codebase for iOS + Android + Web.
+- Port all screens, DialKnob (Canvas), emotion detection, media APIs.
+- Estimated 3 weeks. Gives cross-platform credibility.
+
+### Decision: Keyword Enrichment over HuggingFace API
+
+**Original plan (Task 60):** HuggingFace Inference API (`j-hartmann/emotion-english-distilroberta-base`).
+
+**Why dropped:**
+- 30s cold start on free tier = broken UX on first save
+- ~$0.10/month credit cap — not truly free at scale
+- Not trained on Indian English or Hinglish
+- CALM has no corresponding label in the model — CALM would never be detected
+
+**New approach:** Enrich `EmotionDetector.kt` with Indian English, Hinglish, Gen Z slang, spiritual/cultural language.
+- Free forever, zero latency, offline-first, better accuracy for target user (Late Millennials / Gen Z India)
+- Research brief provided; user to gather UGC keyword doc; Claude to implement + validate
+
+### Tasks Deferred (not blocking launch)
+- Task 58d (Split Screens.kt) — tech debt, post-launch v1.1
+- Task 59 (DB Migration 2→3) — needed only for Phase B bookmarks, not for launch
+- Phases B, C, D, E — post-launch roadmap unchanged

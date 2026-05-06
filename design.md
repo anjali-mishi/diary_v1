@@ -9,7 +9,16 @@ This document defines the foundational visual language for the Memory App. It se
 
 ## Typography
 *   **Primary Font (Titles):** `Trocchi` (Google Fonts, free) - Gives the personal, handmade journal feel. Replaced `Playwrite Österreich` as of Task 47.
-*   **Secondary Font (Body Text, Entries & Dates):** Highly legible Sans-Serif (e.g., `SF Pro Rounded`, `Nunito`, or `Inter`) - Ensures long journal entries and dates are easy to read.
+*   **Secondary Font (Body Text, Entries & Dates):** `Nunito` (shipped as `sf_pro_rounded` in res/font) - Ensures long journal entries and dates are easy to read.
+
+### Type Scale
+| Style | Token | Family | Weight | Size | Line Height | Usage |
+|---|---|---|---|---|---|---|
+| **Headline** | `titleMedium` | Nunito | Bold | 20sp | 24sp | Card headlines, memory titles |
+| **Body Large** | `bodyLarge` | Nunito | Regular | 20sp | 28sp (140%) | Memory detail body text (all variants) |
+| **Body** | `bodyMedium` | Nunito | Regular | 14sp | 20sp | Subtitles, inline text |
+| **Caption** | `bodySmall` | Nunito | Regular | 12sp | 16sp | Secondary captions |
+| **Label** | `labelSmall` | Nunito | Bold | 11sp | 16sp | Date labels, emoji row |
 
 ## Color Palette
 ### Base Colors
@@ -62,24 +71,89 @@ Using the full color as a solid block background is forbidden (see note below). 
 *   **Tilt:** Even-index cards tilt **−3°** (left), odd-index cards tilt **+3°** (right), applied via `graphicsLayer { rotationZ }` so it is purely visual and does not affect layout bounds or shared transitions.
 
 ### Card Dimensions
-*   **Height:** Fixed `300dp` for all three variants.
-*   **Corner radius:** `20dp` (see Shapes & Radii).
-*   **Shadow:** `appleShadow(cornerRadius = 20.dp)` — the app's custom Apple-style soft-shadow modifier.
-*   **Texture:** `paperTexture()` overlay on every card for the scrapbook feel.
+*   **Height:** Fixed `300dp` for all variants.
+*   **Width:** 70% of screen width.
+*   **Corner radius:** `30dp`.
+*   **Shadow:** None — relies on frosted blur and gradient for elevation.
+*   **Texture:** None — clean card surface.
+*   **Inner Stroke:** White 1px strokes on top, left, and right edges at 10% alpha (subtle inner highlight).
+
+### Card Background
+*   **Style:** Radial frosted glass gradient (two-layer system).
+    - **Layer 1:** Radial gradient base (`white @ 64% alpha` → `sentiment color @ 64% alpha`)
+    - **Layer 2:** Frosted overlay (white 48% alpha + 60px GPU-accelerated blur)
+*   **Gradient:** Radial gradient emanating from center.
+*   **Gradient Spectrum:** 24% spread (0-76% white, 76-100% sentiment transition). Creates soft, subtle color transition.
+*   **Blur Effect:** 60px GPU-accelerated frosted blur on overlay layer (48% white alpha). Creates visible frosting effect while keeping images/text sharp. API 31+ implementation with graceful fallback on older devices.
+*   **Sentiment Colors:** 
+    - HAPPY: `#EBCC75` (golden yellow)
+    - SAD: `#6B9BD1` (soft blue)
+    - ANXIOUS: `#9B8BC6` (lavender)
+    - CALM: `#7FB5A0` (sage green)
+    - EXCITED: `#FF9F66` (coral)
+    - NEUTRAL: `#D4C5B9` (beige)
+
+### Card Padding
+*   **Horizontal (left, right):** `24dp`
+*   **Top:** `24dp`
+*   **Bottom:** `16dp`
 
 ### Card Variants
 Three variants are selected automatically based on which media is attached to the memory:
 
 | Variant | Trigger | Layout |
 |---|---|---|
-| **Photo** | `photoFilePath != null` | 160dp `AsyncImage` hero at top; headline + body + date row below |
-| **Audio** | `audioFilePath != null` (no photo) | 160dp animated waveform visualiser at top; headline + body + date row below |
-| **Text-only** | No media | Full-height text layout; emotional-tone gradient brush fills the card background |
+| **Photo** | `photoFilePath != null` | 110dp image at top; text below (headline + body + date) |
+| **Audio** | `audioFilePath != null` (no photo) | 110dp animated waveform at top; text below |
+| **Text-only** | No media | Full-height text with frosted gradient background |
 
 ### Card Typography
-*   **Headline:** 20sp, `FontWeight.Bold`, Trocchi — first sentence of the entry (split at `.`, `!`, `?`, or `\n`), max 2 lines.
-*   **Body:** 16sp, SF Pro Rounded, 70% opacity — remainder of the entry, max 2 lines with ellipsis.
-*   **Date label:** `labelSmall`, secondary colour at 60% opacity.
+*   **Headline:** 
+    - Font size: 20sp
+    - Font weight: Bold
+    - Font family: SF Pro Rounded
+    - Line height: 22sp
+    - Letter spacing: -0.4sp
+    - Color: `#000000` at 88% opacity (`#E0000000`)
+    - Lines: Max 2 with ellipsis
+
+*   **Body / Subtitle:**
+    - Font size: 14sp
+    - Font weight: Regular
+    - Font family: SF Pro Rounded
+    - Line height: 18sp
+    - Letter spacing: -0.4sp
+    - Color: `#000000` at 62% opacity (`#9E000000`)
+    - Lines: Max 2 with ellipsis
+
+*   **Date Label:**
+    - Font size: 12sp
+    - Font weight: Regular
+    - Font family: SF Pro Rounded
+    - Line height: 16sp
+    - Letter spacing: -0.4sp
+    - Color: `#000000` at 62% opacity (`#9E000000`)
+    - Format: "MMM d" (e.g., "12 April")
+    - Position: Bottom-left
+
+*   **Sentiment Emoji Indicator:**
+    - Position: Bottom-right
+    - Size: 18sp
+    - Mapping:
+      - HAPPY: 😊
+      - SAD: 😢
+      - ANXIOUS: 😰
+      - CALM: 😌
+      - EXCITED: 😄
+      - NEUTRAL: 😐
+
+### Media Images
+*   **Photo variant:** 110dp height, full card width, crops excess vertically
+*   **Audio variant:** Waveform display in 110dp height box with sentiment color background
+*   **Multiple images (future):** 
+    - 1 image: Full width, 110dp height
+    - 2 images: 50% width each with 2px gap, 110dp height
+    - 3 images: 1 full-width on top (110dp), 2 below (50% width each with 2px gap, 110dp height)
 
 ## List Components
 

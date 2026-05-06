@@ -177,6 +177,29 @@ Executing the specific soft, journal-like aesthetics defined in `design.md` requ
   * Snippet (primary): `nunitoFamily`, 16sp, Regular, 1 line — Trocchi is display-only; body text in lists uses the legible sans-serif per `design.md`.
   * Date (secondary): `labelSmall`, `#8E8A86` — matches "Secondary/Hint Text" in the design system. Previous `emotCol.copy(alpha = 0.75f)` was failing accessibility contrast and violated the emotional color "full alpha for text only" rule.
 
+## Publishing & Platform Strategy
+
+* **Android-first, React Native second:**
+  * Decision: Ship Android app to Play Store first. Once live and validated with real users, rewrite in React Native for iOS + Android + Web (single codebase).
+  * Rationale: App is 95% complete. Fastest path to "proof of credibility as a product builder." React Native rewrite estimated 3 weeks post-launch.
+  * React Native chosen over PWA + Capacitor for stronger portfolio signal (native compilation, App Store presence on both platforms).
+
+* **No monetisation:**
+  * App published free, no ads, no IAP. Goal is credibility — "I can ship independently" — not revenue.
+
+* **Emotion Detection: Indian English keyword enrichment over HuggingFace API:**
+  * Task 60 (HuggingFace Inference API) revised. HuggingFace free tier has cold starts up to 30s and ~$0.10/month credit limit. Not trained on Indian English or Hinglish.
+  * Decision: enrich `EmotionDetector.kt` keyword sets with Indian English, Hinglish transliterations, Gen Z slang, and spiritual/cultural language instead.
+  * Rationale: (1) free forever, (2) zero latency, (3) better accuracy for target user (Late Millennials / Gen Z India), (4) "100% private, no data leaves phone" is a stronger product story.
+  * CALM gap confirmed: HuggingFace model has no `calm` output label. Keyword detection preserves CALM correctly.
+  * Research phase: UGC research brief written for manual research (Reddit, Twitter, Quora India, Instagram, YouTube). User to provide enriched keyword doc; Claude to implement and validate against 10 test phrases before touching code.
+
+* **Task 59 (DB Migration 2→3) deferred:**
+  * New columns (emotionIntensity, bookmarks, stickers, letters) are Phase B/C/D features. Not needed for Android launch. Will be added when Phase B (bookmarks) is implemented.
+
+* **Task 58d (Split Screens.kt) deferred:**
+  * Listed as "do before Phase A" but not a hard blocker. Screens.kt ~2200 lines is tech debt, not a launch blocker. Deferred to post-launch v1.1.
+
 ## Observability / Debugging
 
 * **Structured Logcat Logging:** Added `android.util.Log` calls across all layers with a consistent `Diary.<Layer>` tag convention (`Diary.MainActivity`, `Diary.Navigation`, `Diary.CaptureVM`, `Diary.DiaryVM`, `Diary.Repository`, `Diary.Database`, `Diary.AudioPlayer`, `Diary.AudioRecorder`, `Diary.EmotionDetector`, `Diary.ImageStorage`). Filter all app logs in Logcat with `tag:Diary`. Uses `Log.d` for normal flow, `Log.i` for key state changes, and `Log.e` for errors with full stack traces.

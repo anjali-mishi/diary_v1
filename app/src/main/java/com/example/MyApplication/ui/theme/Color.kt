@@ -17,7 +17,7 @@ val MediumWarmGrey = Color(0xFF8E8A86)
 val AppleCardWhite = Color(0xFFFFFFFF)
 
 // Emotion Colors (Used as soft background gradients)
-val EmotionHappy = Color(0xFFC9A84C)   // warm amber — matches emotionColor()
+val EmotionHappy = Color(0xFFEBCC75)   // golden yellow
 val EmotionSad = Color(0xFF6B9BD1)
 val EmotionAnxious = Color(0xFF9B8BC6)
 val EmotionCalm = Color(0xFF7FB5A0)

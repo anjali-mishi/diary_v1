@@ -17,7 +17,14 @@ object EmotionDetector {
         "beautiful", "grateful", "thankful", "blessed", "celebrate", "celebrated",
         "win", "won", "delighted", "cheerful", "excited", "fantastic", "glorious",
         "proud", "pride", "enjoy", "enjoyed", "enjoying", "relief", "relieved",
-        "comfortable", "lucky", "glad", "pleased", "thrilled", "bright", "positive"
+        "comfortable", "lucky", "glad", "pleased", "thrilled", "bright", "positive",
+        "mast", "bindaas", "bindass", "khush", "khushi", "sukhi", "glowing",
+        "beaming", "slay", "slaying", "slayed", "wholesome", "smitten",
+        "vibing", "vibe", "mauj", "thriving", "elated",
+        "shukar", "shukriya", "alhamdulillah", "waheguru", "satnam",
+        "chuffed", "euphoric", "blissful", "fortunate", "giggly", "tickled", "kicked",
+        "jubilant", "exuberant", "ebullient", "buoyant", "gratified", "rapturous",
+        "sanguine", "blithe"
     )
 
     private val sadKeywords = setOf(
@@ -26,7 +33,15 @@ object EmotionDetector {
         "heartbreak", "heartbroken", "disappointed", "disappointment", "depress",
         "depressed", "depression", "down", "upset", "sorry", "regret", "regretful",
         "gone", "alone", "empty", "hopeless", "unfortunate", "difficult", "tough",
-        "struggle", "struggled", "struggling", "broken", "lost", "mourn", "mourning"
+        "struggle", "struggled", "struggling", "broken", "lost", "mourn", "mourning",
+        "shattered", "devastated", "hollow", "drained", "numb", "lifeless",
+        "sobbing", "weeping", "akela", "taanha", "udaas", "dukhi", "yaad",
+        "dard", "gham", "takleef", "toot", "tuta", "rona", "ghosted", "low",
+        "misss", "missingg",
+        "gutted", "crushed", "wrecked", "depleted", "isolated", "abandoned",
+        "defeated", "deflated", "blue", "forlorn", "wistful", "melancholy",
+        "melancholic", "mournful", "bereft", "crestfallen", "morose", "desolate",
+        "rueful", "unwell", "homesick"
     )
 
     private val anxiousKeywords = setOf(
@@ -34,7 +49,13 @@ object EmotionDetector {
         "stress", "stressed", "stressful", "scared", "fear", "fearful", "panic",
         "panicked", "overwhelmed", "uneasy", "dread", "dreading", "tense", "tension",
         "concern", "concerned", "afraid", "terrified", "terror", "unsure", "uncertain",
-        "uncertainty", "doubt", "doubtful", "overthinking", "restless", "apprehensive"
+        "uncertainty", "doubt", "doubtful", "overthinking", "restless", "apprehensive",
+        "pareshan", "chinta", "fikar", "ghabrahat", "frazzled", "scattered",
+        "jittery", "spiraling", "ghutan", "ghabraana",
+        "stressing", "panicking", "fretting", "frantic", "antsy", "foreboding",
+        "agitated", "perturbed", "flustered", "vexed", "fraught", "distraught",
+        "harried", "discombobulated", "trepidation", "disquiet", "disquieted",
+        "doomscrolling", "burnout"
     )
 
     private val calmKeywords = setOf(
@@ -42,7 +63,10 @@ object EmotionDetector {
         "serene", "serenity", "still", "stillness", "meditate", "meditation",
         "breathe", "breathing", "gentle", "slow", "cozy", "comfortable", "content",
         "contentment", "ease", "tranquil", "tranquility", "mindful", "mindfulness",
-        "grounded", "centered", "balanced", "harmony", "soothing", "restful", "rested"
+        "grounded", "centered", "balanced", "harmony", "soothing", "restful", "rested",
+        "sukoon", "shanti", "aaram", "shaant", "chill", "yoga", "satsang", "japa",
+        "settled", "mellow", "placid", "composed", "unruffled", "sedate",
+        "halcyon", "lulled", "zen"
     )
 
     private val excitedKeywords = setOf(
@@ -50,7 +74,11 @@ object EmotionDetector {
         "pumped", "energized", "ecstatic", "electric", "buzzing", "wow", "amazing",
         "unbelievable", "spectacular", "fantastic", "brilliant", "outstanding",
         "phenomenal", "extraordinary", "can't wait", "looking forward", "adventure",
-        "spontaneous", "surprise", "surprised", "exhilarated", "hyped", "fired up"
+        "spontaneous", "surprise", "surprised", "exhilarated", "hyped", "fired up",
+        "hype", "giddy", "jhakaas", "dhamaal", "geeked", "winning",
+        "exciteddd", "excitee", "omg", "stoked",
+        "jazzed", "amped", "psyched", "eager", "agog", "enraptured", "enthralled",
+        "riveted", "effervescent", "rapt", "galvanized", "invigorated"
     )
 
     /**

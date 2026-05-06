@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -45,18 +46,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
+import com.example.myapplication.R
 import com.example.myapplication.ui.viewmodel.DiaryViewModel
 import com.example.myapplication.util.AudioPlayer
 import com.example.myapplication.util.audioFileDuration
@@ -107,9 +115,10 @@ fun MemoryDetailScreen(
     } else Modifier
 
     // ── Hero geometry ──────────────────────────────────────────────────────
+    val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
     val heroHeight = when {
-        memory?.photoFilePath != null -> 300.dp
-        memory?.audioFilePath != null -> 220.dp
+        memory?.photoFilePath != null -> screenHeightDp * 0.4f  // proportional to screen
+        memory?.audioFilePath != null -> 160.dp
         else -> 0.dp
     }
     val hasHero = heroHeight > 0.dp
@@ -128,6 +137,20 @@ fun MemoryDetailScreen(
         }
     }
 
+    // ── Navigation fill: transparent over hero, fills white once content scrolls behind
+    val navBackgroundAlpha by remember {
+        derivedStateOf {
+            // index 0 = navSpacer, index 1 = hero, index 2+ = content
+            when {
+                listState.firstVisibleItemIndex >= 2 -> 0.9f   // content behind nav → full white
+                listState.firstVisibleItemIndex == 1 -> {       // hero visible → fade
+                    (listState.firstVisibleItemScrollOffset / heroHeightPx).coerceIn(0f, 1f) * 0.9f
+                }
+                else -> 0f                                       // nav spacer → transparent
+            }
+        }
+    }
+
     // ── Audio ──────────────────────────────────────────────────────────────
     val audioPlayer = remember { AudioPlayer() }
     var isAudioPlaying by remember { mutableStateOf(false) }
@@ -141,8 +164,15 @@ fun MemoryDetailScreen(
     //   was causing it to visibly fade over the home screen.
     //   The Scaffold (shared element) only controls the container geometry. ──
     Box(modifier = modifier.fillMaxSize()) {
-        // Non-shared gradient — exits instantly with the screen composition
+        // Background layer 1: gradient
         Box(Modifier.fillMaxSize().background(gradientBg))
+        // Background layer 2: scrim overlay
+        Image(
+            painter = painterResource(R.drawable.memory_detail_scrim),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
 
         Scaffold(
             modifier = Modifier
@@ -156,90 +186,60 @@ fun MemoryDetailScreen(
                 CircularProgressIndicator()
             }
         } else {
-            Box(Modifier.fillMaxSize().padding(innerPadding)) {
+            // Single LazyColumn: nav spacer → hero → content, all scroll as one page
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize().padding(innerPadding)
+            ) {
+                // Spacer reserves height for floating nav buttons so hero starts below them
+                item(key = "navSpacer") {
+                    Spacer(Modifier.statusBarsPadding().height(68.dp))
+                }
+
                 if (hasHero) {
-                    // ── Parallax hero (behind content) ─────────────────────
-                    Box(
-                        modifier = Modifier
-                            .graphicsLayer { translationY = -parallaxOffset }
-                            .height(heroHeight)
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-                    ) {
+                    item(key = "hero") {
                         if (memory.photoFilePath != null) {
                             AsyncImage(
                                 model = memory.photoFilePath,
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(heroHeight)
+                                    .padding(horizontal = 16.dp)
+                                    .clip(RoundedCornerShape(12.dp))
                             )
                         } else if (memory.audioFilePath != null) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(emotionColor.copy(alpha = 0.85f)),
-                                contentAlignment = Alignment.Center
+                                    .fillMaxWidth()
+                                    .height(heroHeight)
+                                    .padding(horizontal = 16.dp)
+                                    .clip(RoundedCornerShape(12.dp))
                             ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(56.dp)
-                                            .background(Color.White.copy(alpha = 0.25f), CircleShape)
-                                            .clickable {
-                                                if (isAudioPlaying) {
-                                                    audioPlayer.stop(); isAudioPlaying = false
-                                                } else {
-                                                    audioPlayer.playFile(memory.audioFilePath) { isAudioPlaying = false }
-                                                    isAudioPlaying = true
-                                                }
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(32.dp)
-                                        )
-                                    }
-                                    audioDuration?.let {
-                                        Text(it, style = MaterialTheme.typography.labelMedium,
-                                            color = Color.White.copy(alpha = 0.85f))
-                                    }
-                                }
+                                AudioHeroSection(
+                                    audioFilePath = memory.audioFilePath,
+                                    audioPlayer = audioPlayer,
+                                    isPlaying = isAudioPlaying,
+                                    duration = audioDuration,
+                                    onPlayToggle = { isAudioPlaying = it },
+                                    waveformData = memory.waveformData
+                                )
                             }
                         }
                     }
-
-                    // Content scrolls over hero (opaque background covers it)
-                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                        item(key = "heroSpacer") { Spacer(Modifier.height(heroHeight)) }
-                        item(key = "heroContent") {
-                            MediaContentSection(
-                                memory = memory,
-                                emotionColor = emotionColor,
-                                audioDuration = audioDuration,
-                                audioPlayer = audioPlayer,
-                                isAudioPlaying = isAudioPlaying,
-                                onPlayToggle = { isAudioPlaying = it }
-                            )
-                        }
+                    item(key = "heroContent") {
+                        MediaContentSection(
+                            memory = memory,
+                            emotionColor = emotionColor,
+                            audioDuration = audioDuration,
+                            audioPlayer = audioPlayer,
+                            isAudioPlaying = isAudioPlaying,
+                            onPlayToggle = { isAudioPlaying = it }
+                        )
                     }
                 } else {
-                    // Text-only: typography hero, transparent bg, no parallax.
-                    // statusBarsPadding + button height (40dp) + row padding (8dp) push content
-                    // below the floating nav controls.
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .statusBarsPadding()
-                            .padding(top = 56.dp)
-                    ) {
-                        item(key = "textHero") { TextOnlyHeroSection(memory, emotionColor) }
-                    }
+                    item(key = "textHero") { TextOnlyHeroSection(memory, emotionColor) }
                 }
             }
         }
@@ -249,45 +249,44 @@ fun MemoryDetailScreen(
         // These sit OUTSIDE sharedBounds so they don't interfere with the
         // spring geometry, and outside the Scaffold so they aren't pushed down
         // by innerPadding. statusBarsPadding ensures they clear the status bar.
+        // Background fills with white as content scrolls behind them.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 4.dp, vertical = 4.dp),
+                .padding(horizontal = 24.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .appleShadow()
-                    .background(Color.White, CircleShape),
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = navBackgroundAlpha), CircleShape)
+                    .clickable { onNavigateBack() },
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color(0xFF1C1C1E),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color(0xFF1C1C1E),
+                    modifier = Modifier.size(20.dp)
+                )
             }
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .appleShadow()
-                    .background(Color.White, CircleShape),
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = navBackgroundAlpha), CircleShape)
+                    .clickable { onNavigateToEdit() },
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(onClick = onNavigateToEdit) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit memory",
-                        tint = Color(0xFF1C1C1E),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit memory",
+                    tint = Color(0xFF1C1C1E),
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     } // end outer Box
@@ -310,16 +309,20 @@ private fun MediaContentSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp)
-            .padding(top = 20.dp, bottom = 48.dp)
+            .padding(top = 32.dp, bottom = 48.dp)
     ) {
         memory.textContent?.takeIf { it.isNotBlank() }?.let {
-            Text(it, style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground)
-            Spacer(Modifier.height(20.dp))
+            Text(
+                text = it,
+                modifier = Modifier.padding(horizontal = 44.dp),
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.Black
+            )
+            Spacer(Modifier.height(24.dp))
         }
-        DateAndToneRow(dateLabel, memory.emotionalTone, emotionColor)
+        Row(modifier = Modifier.padding(horizontal = 44.dp)) {
+            DateAndToneRow(dateLabel, memory.emotionalTone, emotionColor)
+        }
         if (memory.audioFilePath != null) {
             Spacer(Modifier.height(16.dp))
             AudioPill(audioDuration, isAudioPlaying) {
@@ -342,23 +345,20 @@ private fun TextOnlyHeroSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .padding(top = 16.dp, bottom = 48.dp)
+            .padding(top = 32.dp, bottom = 48.dp)
     ) {
         bodyText?.let {
             Text(
                 text = it,
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    brush = Brush.linearGradient(
-                        colors = listOf(Color.Black, emotionColor),
-                        start = Offset(0f, 0f),
-                        end = Offset(0f, Float.POSITIVE_INFINITY)
-                    )
-                )
+                modifier = Modifier.padding(horizontal = 44.dp),
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.Black
             )
         }
         Spacer(Modifier.height(24.dp))
-        DateAndToneRow(dateLabel, memory.emotionalTone, emotionColor)
+        Row(modifier = Modifier.padding(horizontal = 44.dp)) {
+            DateAndToneRow(dateLabel, memory.emotionalTone, emotionColor)
+        }
     }
 }
 
@@ -370,20 +370,78 @@ private fun DateAndToneRow(dateLabel: String, tone: String?, emotionColor: Color
     ) {
         Text(
             text = dateLabel,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0x9E000000)
         )
-        if (!tone.isNullOrBlank() && tone != "NEUTRAL") {
-            Box(
-                modifier = Modifier
-                    .background(emotionColor.copy(alpha = 0.15f), RoundedCornerShape(50))
-                    .padding(horizontal = 8.dp, vertical = 3.dp)
-            ) {
-                Text(
-                    text = tone.lowercase().replaceFirstChar { it.uppercaseChar() },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = emotionColor
+        val emoji = when(tone) {
+            "HAPPY" -> "😊"
+            "SAD" -> "😢"
+            "ANXIOUS" -> "😰"
+            "CALM" -> "😌"
+            "EXCITED" -> "😄"
+            else -> "😐"
+        }
+        Text(text = emoji, style = MaterialTheme.typography.labelSmall.copy(fontSize = 18.sp))
+    }
+}
+
+@Composable
+private fun AudioHeroSection(
+    audioFilePath: String,
+    audioPlayer: AudioPlayer,
+    isPlaying: Boolean,
+    duration: String?,
+    onPlayToggle: (Boolean) -> Unit,
+    waveformData: String?
+) {
+    val waveBarCount = 30
+    val waveBarHeights = remember(waveformData, audioFilePath) {
+        val parsed = waveformData?.removeSurrounding("[", "]")?.split(",")?.mapNotNull { it.trim().toFloatOrNull() }?.takeIf { it.isNotEmpty() }
+        parsed?.let { data -> List(waveBarCount) { i -> data[(i.toFloat() / waveBarCount * data.size).toInt().coerceAtMost(data.size - 1)].coerceIn(0.15f, 1f) } }
+            ?: run { val rng = kotlin.random.Random(audioFilePath.hashCode()); List(waveBarCount) { 0.15f + 0.85f * rng.nextFloat() } }
+    }
+
+    var playProgress by remember { mutableStateOf(0f) }
+    LaunchedEffect(isPlaying) {
+        while (isPlaying) {
+            playProgress = audioPlayer.currentPosition.toFloat() / audioPlayer.duration.coerceAtLeast(1)
+            kotlinx.coroutines.delay(100)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .clickable {
+                if (isPlaying) { audioPlayer.stop(); onPlayToggle(false) }
+                else { audioPlayer.playFile(audioFilePath) { onPlayToggle(false) }; onPlayToggle(true) }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 32.dp)) {
+            val barW = size.width / (waveBarCount * 1.6f)
+            val gap = barW * 0.6f
+            waveBarHeights.forEachIndexed { i, frac ->
+                val scale = if (isPlaying) (1f + frac * 0.5f) else frac
+                val barH = scale * size.height
+                val x = i * (barW + gap)
+                val y = (size.height - barH) / 2f
+                drawRoundRect(
+                    color = Color(0xFF1C1C1E),
+                    topLeft = Offset(x, y),
+                    size = Size(barW, barH),
+                    cornerRadius = CornerRadius(barW / 2f)
                 )
+            }
+        }
+        Row(modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.height(2.dp).width(60.dp).background(Color(0xCC000000), RoundedCornerShape(1.dp))) {
+                Box(modifier = Modifier.height(2.dp).width((60.dp * playProgress)).background(Color(0xFF1C1C1E), RoundedCornerShape(1.dp)))
+            }
+            Box(modifier = Modifier.size(8.dp).background(Color(0xFF1C1C1E), CircleShape))
+            duration?.let {
+                Text(it, style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp), color = Color(0x9E000000))
             }
         }
     }

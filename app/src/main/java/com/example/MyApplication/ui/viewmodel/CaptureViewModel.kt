@@ -45,9 +45,10 @@ class CaptureViewModel(
         photoUri: String? = null,
         audioUri: String? = null,
         waveformData: String? = null,
+        emotionOverride: String? = null,
         onSuccess: () -> Unit
     ) {
-        Log.d(TAG, "saveMemory: textLen=${textContent.length}, hasPhoto=${photoUri != null}, hasAudio=${audioUri != null}, hasWaveform=${waveformData != null}")
+        Log.d(TAG, "saveMemory: textLen=${textContent.length}, hasPhoto=${photoUri != null}, hasAudio=${audioUri != null}, hasWaveform=${waveformData != null}, emotionOverride=$emotionOverride")
 
         if (textContent.isBlank() && photoUri == null && audioUri == null) {
             Log.w(TAG, "saveMemory: aborted — no content provided")
@@ -71,9 +72,15 @@ class CaptureViewModel(
                 else "Untitled"
             Log.d(TAG, "saveMemory: generated title='$title'")
 
-            // Analyse emotional tone — tries HuggingFace API, falls back to keywords
-            val sentiment = analyzeSentiment(textContent)
-            Log.d(TAG, "saveMemory: tone=${sentiment.tone} intensity=${sentiment.intensity} secondary=${sentiment.secondaryTone}")
+            // Use user-selected emotion if provided, otherwise auto-detect
+            val sentiment = if (emotionOverride != null) {
+                Log.d(TAG, "saveMemory: using emotion override=$emotionOverride")
+                com.example.myapplication.util.SentimentResult(tone = emotionOverride, intensity = 1f, secondaryTone = null)
+            } else {
+                analyzeSentiment(textContent).also {
+                    Log.d(TAG, "saveMemory: tone=${it.tone} intensity=${it.intensity} secondary=${it.secondaryTone}")
+                }
+            }
 
             val isNew = existingId == null
             val memory = Memory(

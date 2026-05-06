@@ -410,7 +410,7 @@ Text-only memory:
 
 ## Phase A-pre: Codebase Health
 
-- [ ] **Task 58d: Split Screens.kt into per-screen files.**
+- [ ] **Task 58d: Split Screens.kt into per-screen files.** ⏸ DEFERRED — tech debt, not a launch blocker. Do post-launch v1.1.
   - `Screens.kt` is ~2200 lines and growing. Split into:
     - `ui/DiaryScreen.kt` — DiaryScreen + BentoMemoryCard + bottom sheet
     - `ui/IndexScreen.kt` — IndexScreen + PolaroidPillCard + DotRailTimeline
@@ -427,7 +427,7 @@ Text-only memory:
 ### Goal
 Replace keyword-based emotion detection with a free on-device/API model, and make the `IndexScreen` feel like a real diary with a timeline layout and filterable views.
 
-- [ ] **Task 59: DB Migration 2→3 — Expanded Schema.**
+- [ ] **Task 59: DB Migration 2→3 — Expanded Schema.** ⏸ DEFERRED — not needed for Android launch. Add when Phase B (bookmarks) is implemented.
   - Add `Migration(2, 3)` to `AppDatabase.kt` with the following `ALTER TABLE` statements on the `memories` table:
     - `emotionIntensity REAL` — 0.0–1.0 confidence score from the sentiment model.
     - `secondaryEmotionalTone TEXT` — second-highest emotion label (nullable).
@@ -440,14 +440,14 @@ Replace keyword-based emotion detection with a free on-device/API model, and mak
   - Bump `AppDatabase` version from `2` to `3`. Add new fields to `Memory` entity with `@ColumnInfo` defaults matching the migration.
   - Update `MemoryDao` and `MemoryRepository` with any new query methods needed downstream.
 
-- [ ] **Task 60: HuggingFace Inference API — Sentiment Analysis.**
-  - Add `OkHttp` + `kotlinx.serialization` (or Gson) dependencies to `build.gradle.kts` if not present.
-  - Create `util/SentimentAnalyzer.kt`: a suspend function `analyze(text: String): SentimentResult` that POSTs to the HuggingFace Inference API endpoint for `j-hartmann/emotion-english-distilroberta-base`.
-  - Model outputs 7 labels (`joy`, `sadness`, `fear`, `anger`, `surprise`, `disgust`, `neutral`); map to app tones: `joy→HAPPY`, `sadness→SAD`, `fear→ANXIOUS`, `anger→ANXIOUS`, `surprise→EXCITED`, `disgust→SAD`, `neutral→NEUTRAL`.
-  - Store top-1 label as `emotionalTone`, top-1 score as `emotionIntensity`, top-2 label as `secondaryEmotionalTone`.
-  - **Fallback**: if the API call fails (no network, rate-limit, etc.), fall back to the existing keyword-based `EmotionDetector.kt`. Log the fallback with `android.util.Log.w`.
-  - API key stored in `local.properties` as `HUGGINGFACE_API_KEY`; read at build time via `BuildConfig`. Never commit the key.
-  - Call `analyze()` inside `CaptureViewModel.saveMemory()` before persisting, replacing the current `EmotionDetector` call.
+- [ ] **Task 60 (REVISED): Indian English Keyword Enrichment — Emotion Detection.**
+  - ~~HuggingFace API approach dropped.~~ Reasons: 30s cold start UX issue, $0.10/month free tier limit, not trained on Indian English/Hinglish, external API dependency.
+  - **New approach:** Enrich `EmotionDetector.kt` keyword sets with Indian English, Hinglish transliterations, Gen Z slang, and spiritual/cultural language.
+  - **Research phase (user):** Use the provided research brief to gather keywords from Reddit India, Twitter, Quora India, Instagram, YouTube UGC. Deliver structured keyword doc per emotion.
+  - **Implementation phase (Claude):** Expand `setOf(...)` blocks in `EmotionDetector.kt`. No new files, no dependencies, no API keys.
+  - **Validation:** Run detector against 10 test phrases (provided in research brief) and show predicted output before writing to file.
+  - **CALM gap:** HuggingFace has no `calm` label — keyword detection preserves CALM correctly. Enrich calm keywords with: shanti, grounded, shukar, prasad, slow day, me time, chai time.
+  - No changes to `CaptureViewModel` — `EmotionDetector.detect()` call is unchanged.
 
 - [x] **Task 61 (superseded): IndexScreen — Sentiment Dial + PolaroidPillCard List.**
   - Replaced the planned `LazyColumn` timeline layout with a fully custom sentiment-driven browser:
@@ -459,6 +459,57 @@ Replace keyword-based emotion detection with a free on-device/API model, and mak
 
 - [x] **Task 62 (superseded): Emotion Filter Chips → replaced by DialKnob.**
   - Sentiment selection is handled by the DialKnob (6 sentiments). No chip row needed.
+
+---
+
+## Phase: Android Publish (Next Immediate Goal)
+
+### Goal
+Get the app live on Google Play Store as a free app. Establish credibility as an independent product builder.
+
+- [ ] **Task P1: Indian English Keyword Enrichment (Task 60 revised)**
+  - User delivers UGC research doc (see research brief in conversation).
+  - Claude expands `EmotionDetector.kt` keyword sets.
+  - Validate against 10 test phrases before committing.
+
+- [ ] **Task P2: Privacy Policy**
+  - Write minimal privacy policy: local-only storage, no tracking, no cloud.
+  - Host on GitHub Pages or Notion (free, public URL required by Play Store).
+  - Template: "This app stores all data locally on your device. We do not collect, share, or upload any personal data."
+
+- [ ] **Task P3: Play Store Listing**
+  - Create Google Play Developer account ($25 one-time fee).
+  - App title: "Memory – Personal Diary"
+  - Description: 2–3 paragraphs covering capture (text/photo/audio), emotion detection, local-first privacy.
+  - Screenshots: minimum 2 (CaptureScreen, DiaryScreen, DialKnob recommended).
+  - App icon: already exists in project.
+
+- [ ] **Task P4: QA on Real Devices**
+  - Test full flow: capture (text + photo + audio) → view → edit → delete.
+  - Test on Android 12, 13, 14 (3 devices or emulators minimum).
+  - Test offline: disable network, verify capture still works.
+  - Test with 20+ memories: scroll performance, emotion color accuracy.
+
+- [ ] **Task P5: Build Release APK + Submit**
+  - `./gradlew assembleRelease`
+  - Sign APK (generate keystore, store safely — never commit to git).
+  - Upload to Play Store internal testing track first, then promote to production.
+  - Wait 24–48h for review.
+
+---
+
+## Phase: React Native Rewrite (Post Android Launch, ~3 weeks)
+
+### Goal
+Single codebase for iOS + Android + Web. Establish cross-platform credibility. Estimated: 3 weeks after Android launch.
+
+- [ ] **Task RN1: Setup & Navigation** — React Native CLI, React Navigation, design tokens from `design.md`
+- [ ] **Task RN2: UI Screens** — CaptureScreen, DiaryScreen, IndexScreen, DetailScreen
+- [ ] **Task RN3: DialKnob + Waveform** — reimplement custom Canvas components in React Native Skia or SVG
+- [ ] **Task RN4: Database** — WatermelonDB or Realm (replaces Room)
+- [ ] **Task RN5: Media** — audio recording/playback, camera/gallery (Expo modules)
+- [ ] **Task RN6: Emotion Detection** — port Indian English keyword sets from `EmotionDetector.kt`
+- [ ] **Task RN7: iOS App Store + Play Store Submission** — both platforms from single codebase
 
 ---
 
