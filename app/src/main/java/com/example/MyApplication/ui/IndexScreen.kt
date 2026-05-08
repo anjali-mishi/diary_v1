@@ -242,6 +242,7 @@ private var diarySessionBgCounter = 0
 @Composable
 fun IndexScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToCapture: () -> Unit,
     onNavigateToEdit: (String) -> Unit,
     onNavigateToDetail: (String) -> Unit,
     viewModel: DiaryViewModel,
@@ -305,6 +306,79 @@ fun IndexScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         if (memories.isEmpty()) {
+            // ── Background layers (empty state) ────────────────────────
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.00f to MaterialTheme.colorScheme.background,
+                                0.35f to sentimentColor.copy(alpha = 0.12f),
+                                1.00f to sentimentColor.copy(alpha = 0.35f)
+                            )
+                        )
+                    )
+            )
+            Image(
+                painter = painterResource(R.drawable.memory_detail_scrim),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // ── Header (empty state) ──────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .appleShadow(cornerRadius = 20.dp)
+                            .background(Color.White, CircleShape)
+                            .clickable { onNavigateBack() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color(0xFF1C1C1E),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "My Diaries",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = nunitoFamily,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .appleShadow(cornerRadius = 20.dp)
+                        .background(Color.White, CircleShape)
+                        .clickable { onNavigateToCapture() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add memory",
+                        tint = Color(0xFF1C1C1E),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
             Column(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -312,38 +386,93 @@ fun IndexScreen(
             ) {
                 Text(
                     text = "No memories yet.",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleLarge.copy(fontFamily = nunitoFamily),
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Save your first memory to see it here.",
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = nunitoFamily),
                     color = MaterialTheme.colorScheme.secondary
                 )
             }
         } else {
-            // ── 1. Sentiment gradient — full screen top-bleed ────────────
-            val density = LocalDensity.current
-            val topBleedPx = with(density) {
-                WindowInsets.statusBars.getTop(density).toFloat() + 56.dp.toPx()
-            }
+            // ── Background layers (two-layer system) ───────────────────
+            // Layer 1: Vertical gradient
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
-                    .graphicsLayer { translationY = -topBleedPx }
+                    .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
                             colorStops = arrayOf(
-                                0.00f to sentimentColor.copy(alpha = 0.22f),
-                                0.55f to Color.Transparent
+                                0.00f to MaterialTheme.colorScheme.background,
+                                0.35f to sentimentColor.copy(alpha = 0.12f),
+                                1.00f to sentimentColor.copy(alpha = 0.35f)
                             )
                         )
                     )
             )
+            // Layer 2: Scrim image
+            Image(
+                painter = painterResource(R.drawable.memory_detail_scrim),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
 
-            // ── Vertical polaroid-pill memory list ────────────────────────
+            // ── Header (with back button, title, and add button) ──────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .appleShadow(cornerRadius = 20.dp)
+                            .background(Color.White, CircleShape)
+                            .clickable { onNavigateBack() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color(0xFF1C1C1E),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "My Diaries",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = nunitoFamily,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .appleShadow(cornerRadius = 20.dp)
+                        .background(Color.White, CircleShape)
+                        .clickable { onNavigateToCapture() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add memory",
+                        tint = Color(0xFF1C1C1E),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // ── Vertical memory list ──────────────────────────────────────
             val listState = rememberLazyListState()
             val focalIdx  = carouselFractIdx.roundToInt()
                 .coerceIn(0, (displayMemories.size - 1).coerceAtLeast(0))
@@ -354,24 +483,24 @@ fun IndexScreen(
 
             if (displayMemories.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize().padding(bottom = 285.dp),
+                    modifier = Modifier.fillMaxSize().statusBarsPadding().padding(bottom = 210.dp, top = 68.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "No ${sentimentItems[focalSentimentIdx].lowercase()} memories yet",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = nunitoFamily),
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
                     )
                 }
             } else {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxSize().padding(bottom = 280.dp),
+                    modifier = Modifier.fillMaxSize().statusBarsPadding().padding(bottom = 210.dp, top = 68.dp),
                     contentPadding = PaddingValues(
-                        top = 8.dp, bottom = 40.dp,
+                        top = 4.dp, bottom = 16.dp,
                         start = 16.dp, end = 16.dp
                     ),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
                     itemsIndexed(displayMemories) { index, memory ->
                         PolaroidPillCard(
@@ -385,7 +514,7 @@ fun IndexScreen(
                 }
             }
 
-            // ── Fade gradient — list dissolves behind timeline zone ───────
+            // ── Fade gradient — subtle veil over bottom zone ──────────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -395,56 +524,47 @@ fun IndexScreen(
                         Brush.verticalGradient(
                             colorStops = arrayOf(
                                 0.00f to Color.Transparent,
-                                0.22f to MaterialTheme.colorScheme.background.copy(alpha = 0.30f),
-                                0.42f to MaterialTheme.colorScheme.background.copy(alpha = 0.72f),
-                                0.62f to MaterialTheme.colorScheme.background.copy(alpha = 0.95f),
-                                1.00f to MaterialTheme.colorScheme.background
+                                1.00f to MaterialTheme.colorScheme.background.copy(alpha = 0.20f)
                             )
                         )
                     )
             )
 
-            // ── Bottom container: timeline + shuffle + dial ───────────────
+            // ── Bottom container: shuffle + dial ─────────────────────────
             val appBg = MaterialTheme.colorScheme.background
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(280.dp)
+                    .height(210.dp)
                     .align(Alignment.BottomCenter),
                 contentAlignment = Alignment.TopCenter
             ) {
-                // Timeline — full width minus right margin for shuffle button
-                DotRailTimeline(
-                    count           = displayMemories.size,
-                    fractionalIndex = carouselFractIdx,
-                    onSeek          = { carouselFractIdx = it },
-                    modifier        = Modifier
-                        .fillMaxWidth()
-                        .height(36.dp)
-                        .padding(top = 8.dp, start = 24.dp, end = 60.dp)
-                        .align(Alignment.TopStart)
-                )
-
-                // Shuffle — brand gradient, always pinned to right edge
-                Box(
+                // Shuffle — secondary button: white bg, black text, primary icon
+                Row(
                     modifier = Modifier
-                        .padding(top = 4.dp, end = 16.dp)
-                        .size(32.dp)
+                        .padding(top = 8.dp, end = 16.dp)
                         .align(Alignment.TopEnd)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFFFF9966), Color(0xFFFF6699))
-                            ),
-                            CircleShape
-                        )
-                        .clickable { shuffleSeed = if (shuffleSeed == 0) 1 else shuffleSeed + 1 },
-                    contentAlignment = Alignment.Center
+                        .appleShadow(cornerRadius = 20.dp)
+                        .background(Color.White, RoundedCornerShape(20.dp))
+                        .clickable { shuffleSeed = if (shuffleSeed == 0) 1 else shuffleSeed + 1 }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
                         imageVector        = Icons.Default.Shuffle,
                         contentDescription = "Shuffle",
-                        tint               = Color.White,
+                        tint               = Color(0xFFFF9966),
                         modifier           = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text      = "Shuffle",
+                        style     = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = nunitoFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize   = 13.sp
+                        ),
+                        color     = Color(0xFF1C1C1E)
                     )
                 }
 
@@ -455,10 +575,11 @@ fun IndexScreen(
                     snapCount       = sentimentItems.size,
                     items           = sentimentItems,
                     backgroundColor = appBg,
+                    sentimentColor  = sentimentColor,
                     modifier        = Modifier
                         .fillMaxWidth()
-                        .padding(top = 40.dp)
-                        .height(155.dp)
+                        .padding(top = 44.dp)
+                        .height(140.dp)
                 )
             }
         }
@@ -491,83 +612,75 @@ private fun PolaroidPillCard(
     // Fixed per-card tilt — decorative only, not driven by focal state
     val tilt = remember(index) { ((index * 7 + 3) % 9 - 4).toFloat() }
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(82.dp)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Polaroid thumbnail
-        Box(
+        Row(
             modifier = Modifier
-                .width(58.dp)
+                .fillMaxWidth()
                 .height(68.dp)
-                .graphicsLayer { rotationZ = tilt }
-                .appleShadow(cornerRadius = 2.dp)
-                .background(Color.White, RoundedCornerShape(2.dp))
-                .padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 14.dp),
-            contentAlignment = Alignment.Center
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (memory.photoFilePath != null) {
-                AsyncImage(
-                    model = memory.photoFilePath,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+            // Text block — snippet is primary, date is secondary
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                if (snippet.isNotBlank()) {
+                    Text(
+                        text     = snippet,
+                        style    = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = nunitoFamily,
+                            fontSize   = 16.sp,
+                            fontWeight = FontWeight.Normal,
+                            color      = MaterialTheme.colorScheme.onBackground
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                }
+                Text(
+                    text  = dateLabel,
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = nunitoFamily),
+                    color = Color(0xFF8E8A86)
                 )
-            } else {
-                // Fallback Option C: date as art — large typographic date stamp
+            }
+
+            // Polaroid thumbnail — only shown if photo exists
+            if (memory.photoFilePath != null) {
                 Box(
-                    modifier = Modifier.fillMaxSize().background(emotCol.copy(alpha = 0.25f)),
+                    modifier = Modifier
+                        .width(58.dp)
+                        .height(68.dp)
+                        .graphicsLayer { rotationZ = tilt }
+                        .appleShadow(cornerRadius = 2.dp)
+                        .background(Color.White, RoundedCornerShape(2.dp))
+                        .padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 14.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    val dateParts = remember(memory.timestamp) {
-                        val fmt = SimpleDateFormat("MMM\nd", Locale.getDefault())
-                        fmt.format(Date(memory.timestamp))
-                    }
-                    Text(
-                        text      = dateParts,
-                        style     = androidx.compose.ui.text.TextStyle(
-                            fontFamily = trocchiFamily,
-                            fontSize   = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color      = emotCol,
-                            lineHeight = 20.sp,
-                            textAlign  = androidx.compose.ui.text.style.TextAlign.Center
-                        )
+                    AsyncImage(
+                        model = memory.photoFilePath,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
             }
         }
 
-        // Text block — snippet is primary, date is secondary
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center
-        ) {
-            if (snippet.isNotBlank()) {
-                Text(
-                    text     = snippet,
-                    style    = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = nunitoFamily,
-                        fontSize   = 16.sp,
-                        fontWeight = FontWeight.Normal,
-                        color      = MaterialTheme.colorScheme.onBackground
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-            }
-            Text(
-                text  = dateLabel,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF8E8A86)
-            )
-        }
+        // Divider between rows
+        HorizontalDivider(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            color = Color(0xFF2C2A29).copy(alpha = 0.08f),
+            thickness = 0.5.dp
+        )
     }
 }
 
@@ -576,6 +689,7 @@ private fun DotRailTimeline(
     count: Int,
     fractionalIndex: Float,
     onSeek: (Float) -> Unit,
+    sentimentColor: Color = Color(0xFF2C2A29),
     modifier: Modifier = Modifier,
 ) {
     val railColor = Color(0xFF2C2A29)
@@ -614,7 +728,7 @@ private fun DotRailTimeline(
                 val x     = if (count == 1) size.width / 2f else i * spacing
                 val focal = i == focalIdx
                 drawCircle(
-                    color  = if (focal) railColor else railColor.copy(alpha = 0.28f),
+                    color  = if (focal) sentimentColor else railColor.copy(alpha = 0.28f),
                     radius = if (focal) 5f * density else 3f * density,
                     center = Offset(x, railY)
                 )

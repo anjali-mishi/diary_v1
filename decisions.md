@@ -200,6 +200,101 @@ Executing the specific soft, journal-like aesthetics defined in `design.md` requ
 * **Task 58d (Split Screens.kt) deferred:**
   * Listed as "do before Phase A" but not a hard blocker. Screens.kt ~2200 lines is tech debt, not a launch blocker. Deferred to post-launch v1.1.
 
+## App-Wide Screen System (May 2026 — RTGL1.0)
+
+### Background Layer Standardisation
+- **Decision:** All full-screen destinations share a two-layer background system: (1) `Brush.verticalGradient` from `appBackground` → `emotionColor.copy(0.12f)` → `emotionColor.copy(0.35f)`, and (2) `Image(R.drawable.memory_detail_scrim)` over the top at full size.
+- **Why:** Previously each screen had ad-hoc backgrounds. Standardising on a single spec ensures visual coherence, simplifies future screen additions, and ties every surface back to the emotional tone of the content.
+- **Reference:** Established in `MemoryDetailScreen`, now canonical for the entire app. Documented in `design.md` under "App-Wide Screen System."
+
+### Screen Header / Nav Row Standardisation
+- **Decision:** Every full-screen destination uses a floating 68dp nav row with `24dp` horizontal padding, white-circle icon buttons (`appleShadow()`), and `Color(0xFF1C1C1E)` icon tint. No `TopAppBar` or Scaffold `topBar` for detail and capture screens.
+- **Why:** Scaffold's `TopAppBar` injects `innerPadding.top`, which causes layout shift during shared-element transitions. Floating nav avoids this entirely. The white-circle style was already established on `MemoryDetailScreen`; extending it to `CaptureScreen` makes edit mode feel like a continuation of the detail view rather than a new context.
+- **Content padding rule:** Body content = `44dp` horizontal; UI controls = `24dp` horizontal. Consistent across CaptureScreen and MemoryDetailScreen.
+
+### CaptureScreen: Crossfade Transition (Detail ↔ Edit)
+- **Decision:** When navigating from `MemoryDetailScreen` to `CaptureScreen` (edit mode), use `fadeIn/fadeOut` (280ms) instead of the slide-up used for new captures. Same fade on the return journey.
+- **Why:** Slide-up implies a new sheet appearing. In edit mode, the user is staying in the same content context — a crossfade communicates "mode switch" not "new screen." Nav transitions are route-aware in `AppNavigation.kt` (`initialState.destination.route?.startsWith(Screen.Detail.name)`).
+
+### CaptureScreen: Emotion Picker as Bottom Sheet
+- **Decision:** Emotion is selected via a `ModalBottomSheet` opened by a white pill button (bottom-left of the screen). The previous inline chip row is removed.
+- **Why:** Six emotion options in an inline row consumed significant vertical space and competed with the keyboard. A bottom sheet is dismissible, scannable, and keeps the writing surface clean.
+
+## CaptureScreen Polish Sprint (Post RTGL1.0 — May 2026)
+
+### Keyboard Auto-Open: Reactive Pattern over Proactive Delay
+- **Decision:** Use `onFocusChanged { if (isFocused) keyboardController?.show() }` on `BasicTextField` instead of calling `show()` at a fixed delay.
+- **Why:** `keyboardController?.show()` is fire-and-forget — it is silently ignored if the window doesn't have focus yet (e.g., during a 280ms crossfade transition). A reactive pattern tied to actual focus confirmation is guaranteed to fire at the right time.
+- **Delay retained:** `delay(400)` before `requestFocus()` ensures the crossfade finishes before focus is even requested.
+
+### imePadding() for Bottom Toolbar
+- **Decision:** `Modifier.imePadding()` on the CaptureScreen Column; `navigationBarsPadding()` removed from bottom row.
+- **Why:** `imePadding()` is a single modifier that makes the entire bottom cluster (action icons + Save button) animate up with the keyboard automatically. Removes any need for manual offset calculations or `WindowInsets.ime` subscriptions.
+
+### STT / Mic Removed from CaptureScreen
+- **Decision:** `SpeechRecognizerManager` and all STT UI fully removed from CaptureScreen.
+- **Why:** Android's system keyboard shows a floating toolbar (clipboard + mic shortcuts) when a text field has focus but the keyboard is not visible. This toolbar was appearing on edit mode entry because the keyboard wasn't opening in time. Removing the in-app mic reduces surface area and eliminates the confusing dual-mic affordance (one from the app, one from the system keyboard). STT can be re-added post-launch as a deliberate feature with proper UX design.
+
+### Emotion Tab: Bare in Action Row, not Pill in Bottom Row
+- **Decision:** Emotion selector moved to left of action icons row; pill background/shadow removed; only emoji + label + `ExpandMore` caret.
+- **Why:** The white pill in its own bottom row created visual competition with the Save button directly below it. Moving it into the action row groups all secondary controls together and reduces the number of distinct rows. Bare styling keeps it lightweight — it's a modifier, not a CTA.
+
+### Save Button: Full-Width Pill
+- **Decision:** `fillMaxWidth()` + `RoundedCornerShape(100dp)` + `padding(horizontal = 16dp)`.
+- **Why:** A half-width right-aligned button underweights the primary action. Full-width pill is the standard for primary CTAs in the app (consistent with iOS-style bottom buttons). 16dp margin gives slight breathing room from screen edges.
+
 ## Observability / Debugging
 
 * **Structured Logcat Logging:** Added `android.util.Log` calls across all layers with a consistent `Diary.<Layer>` tag convention (`Diary.MainActivity`, `Diary.Navigation`, `Diary.CaptureVM`, `Diary.DiaryVM`, `Diary.Repository`, `Diary.Database`, `Diary.AudioPlayer`, `Diary.AudioRecorder`, `Diary.EmotionDetector`, `Diary.ImageStorage`). Filter all app logs in Logcat with `tag:Diary`. Uses `Log.d` for normal flow, `Log.i` for key state changes, and `Log.e` for errors with full stack traces.
+
+## IndexScreen Final Polish (May 2026)
+
+### Background Standardisation Completion
+- **Decision:** IndexScreen now uses the same two-layer background system as MemoryDetailScreen and CaptureScreen: emotion gradient (appBackground → emotionColor.copy(0.18f)) + memory_detail_scrim image.
+- **Why:** Consolidates the entire app around a single visual language — every full-screen destination now has consistent emotional context via the same background stack.
+- **Implementation:** Both empty and populated states render the same background; emotion is inherited from the current dial selection or defaults to NEUTRAL.
+
+### DialKnob: Hue-Only Emotion Color Shift
+- **Decision:** Instead of shifting saturation/brightness, extract only the hue from the emotion color and apply it to dial elements (rimAccent, mutedFg, neuDark, metallic rim gradient).
+- **Why:** Hue shifts preserve the dial's tonal balance and metallic character while still responding to emotion selection. Saturation/brightness shifts would oversaturate or darken key visual elements, breaking the skeuomorphic balance.
+- **Implementation:** `Color.hue()` extracts HSV hue via `android.graphics.Color.RGBToHSV`, applied to all relevant colors with `Color.withHue(hue)`.
+- **Tested:** Visual comparison between Happy (gold hue ~60°) and Calm (green hue ~165°) confirmed hue shift works on all dial surfaces.
+
+### Header Navigation: Floating Row instead of TopAppBar
+- **Decision:** IndexScreen header is a floating Row (not Scaffold TopAppBar) with back button + title on left, Plus button on right.
+- **Why:** Floating nav (matching MemoryDetailScreen/CaptureScreen) avoids inner padding and layout shifts. Consistent nav pattern across all screens reduces cognitive load.
+- **Layout:** `statusBarsPadding().padding(horizontal=24dp, vertical=14dp)` — no fixed height constraint, content sizes naturally.
+- **Plus button:** Captures the top-right slot, navigates to new memory creation flow.
+
+### PolaroidPillCard: Right-Aligned Photo, Text-First Layout
+- **Decision:** Text content (snippet + date) takes left 70%; polaroid thumbnail (58×68dp) occupies right 30% only when `photoUri != null`. Polaroid hidden entirely when no media.
+- **Why:** Text-first prioritizes readability. Photo becomes a secondary scan hint. When no photo exists, the full row is available for text, eliminating whitespace.
+- **Implementation:** Conditional rendering in Row layout — `if (memory.photoFilePath != null) { Box(...) }` — no reserved space when false.
+
+### Shuffle Button: Secondary Style (White, Black Text, Primary Icon)
+- **Decision:** Redesigned shuffle from primary to secondary button: white background, black text (#1C1C1E), primary-color icon (#FF9966).
+- **Why:** Primary buttons (gradient fill) are for primary CTAs (Save, Plus). Shuffle is a utility action, not primary. Secondary style signals lower visual weight while remaining accessible.
+- **Implementation:** `Row` with `RoundedCornerShape(20dp)`, `background(Color.White)`, `Text(..., color = Color(0xFF1C1C1E))`, `Icon(..., tint = Color(0xFFFF9966))`.
+
+### Fade Gradient: 20% Max Alpha
+- **Decision:** Reduced fade gradient alpha from undefined (full) to 20% on background color.
+- **Why:** The previous fade was opaque at the bottom, completely obscuring the emotion gradient + scrim layers. 20% alpha provides visual separation between list and dial without erasing the background layers.
+- **Trade-off:** Slight reduction in list/dial boundary clarity, but preserves the app's unified background aesthetic.
+
+### Spacing Compaction
+- **Decision:** Bottom container 280dp → 210dp. List padding, dial sizing, and row heights all reduced proportionally. List contentPadding changed to top=4dp, bottom=16dp, spacedBy=0dp.
+- **Why:** Removes unnecessary vertical dead space. Dial and list feel more tightly integrated, improving screen real estate usage and visual density without feeling cramped.
+- **Row height:** 82dp → 68dp for PolaroidPillCard, accommodating smaller photos and tighter line-height text.
+
+### DialKnob Font: Trocchi → Nunito
+- **Decision:** Carousel text in DialKnob changed from Trocchi (display font) to Nunito (app default sans-serif).
+- **Why:** Trocchi at 16sp/11sp sizes became hard to read inside the small pill area. Nunito's legibility at small sizes makes the sentiment labels readable at a glance. Trocchi reserved for display/headline contexts only.
+
+### AppNavigation: Removed Duplicate TopAppBar
+- **Decision:** Changed `topBar` logic in Scaffold from `if (isIndex) { TopAppBar(...) }` to `topBar = {}` (empty).
+- **Why:** IndexScreen's floating header replaces the global TopAppBar. Scaffold-level TopAppBar was creating duplicate "My Diaries" text + back buttons on screen. Empty topBar avoids this duplication and prevents inner padding that would affect layout.
+
+### Navigation: Plus Button → Capture Flow
+- **Decision:** New onNavigateToCapture callback passed to IndexScreen; Plus button navigates to `CaptureScreen?action=text`.
+- **Why:** Consistency with DiaryScreen bottom sheet capture entry. Plus button is a discoverable, always-visible alternative to the bottom sheet on IndexScreen.
+- **Implementation:** Wired in AppNavigation at IndexScreen call site.

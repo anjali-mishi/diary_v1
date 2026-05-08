@@ -7,6 +7,73 @@ This document defines the foundational visual language for the Memory App. It se
 * Liquid glass elevation (Apple-style).
 * Soft, diffuse shadows (Apple-style).
 
+---
+
+## App-Wide Screen System
+
+These rules apply to **every full-screen destination** (DiaryScreen, CaptureScreen, IndexScreen, MemoryDetailScreen). Deviations must be explicitly noted.
+
+### Background Layer System (Two-Layer)
+
+Every screen uses a two-layer background stack in this order (bottom to top):
+
+| Layer | Type | Spec |
+|---|---|---|
+| **1 — Gradient** | `Brush.verticalGradient` | `[appBackground, emotionColor.copy(0.12f), emotionColor.copy(0.35f)]`, full screen |
+| **2 — Scrim** | `Image(R.drawable.memory_detail_scrim)` | `fillMaxSize`, `ContentScale.Crop` |
+
+- `emotionColor` = the memory's (or current selection's) `EmotionTone` → `Color` mapping from `ui/theme/Color.kt`.
+- For screens without a specific memory context (e.g., DiaryScreen), use `NEUTRAL` tone as the default gradient.
+- Do **not** use a flat `background` color alone on any full-screen surface — the two-layer system is mandatory.
+
+### Screen Header / Nav Row
+
+Every screen has a floating header row at the top. Spec (applies to CaptureScreen and MemoryDetailScreen):
+
+| Property | Value |
+|---|---|
+| Height | `68dp` |
+| Horizontal padding | `24dp` |
+| Top inset | `statusBarsPadding()` on the parent Box |
+| Title typography | `titleMedium`, nunitoFamily (or Trocchi for display-emphasis screens) |
+| Icon buttons | White circle fill, `appleShadow()`, near-black `Color(0xFF1C1C1E)` icon tint, `40dp` size |
+| Close/Back button | `Icons.Default.Close` or `Icons.Default.ArrowBack`, same circle style |
+
+- The nav row is floating (not in a `TopAppBar` / Scaffold), so `contentWindowInsets = 0` on the parent Scaffold.
+- A `Spacer(Modifier.height(32.dp))` separates the nav row from the first content block beneath it.
+
+### Content Padding
+
+| Zone | Horizontal padding |
+|---|---|
+| Body content (text input, photo, audio blocks) | `44dp` |
+| UI controls (nav row, chips, action rows, bottom bar) | `24dp` |
+
+- These padding values match across CaptureScreen and MemoryDetailScreen for visual consistency.
+
+### Keyboard-Aware Bottom Toolbar
+
+Every screen with a text input and a bottom action row must use `Modifier.imePadding()` on the outermost Column. This makes the full bottom cluster (action icons + emotion tab + Save button) ride up in sync with the keyboard as it slides in, without any manual animation or offset math. `navigationBarsPadding()` is NOT applied separately on the bottom row — `imePadding()` subsumes it.
+
+### Action Row Layout (CaptureScreen)
+
+The action row sits between the text field and the Save button. Layout:
+
+| Position | Content |
+|---|---|
+| Left | Emotion tab — bare: emoji + label text + `↓` caret (`ExpandMore`). No background, no shadow, no pill. Taps open the emotion bottom sheet. |
+| Right | Audio recorder icon + vertical divider + Photo picker icon |
+
+### Save Button
+
+Full-width pill button at the bottom of every capture/edit surface:
+- `fillMaxWidth()`, `padding(horizontal = 16dp)`, `height(52dp)`
+- `RoundedCornerShape(100dp)` — full pill
+- Gradient fill: `GradientPeach → GradientPink` (horizontal) when content exists; flat grey at 15% alpha when empty
+- `appleShadow(100dp)` when active
+
+---
+
 ## Typography
 *   **Primary Font (Titles):** `Trocchi` (Google Fonts, free) - Gives the personal, handmade journal feel. Replaced `Playwrite Österreich` as of Task 47.
 *   **Secondary Font (Body Text, Entries & Dates):** `Nunito` (shipped as `sf_pro_rounded` in res/font) - Ensures long journal entries and dates are easy to read.
@@ -159,11 +226,38 @@ Three variants are selected automatically based on which media is attached to th
 
 ### Vertical Scroll List (IndexScreen / PolaroidPillList)
 *   **Height:** Natural — the list height equals the sum of all item heights plus spacing. No fixed container height.
-*   **Items:** `PolaroidPillCard` — 82dp tall, full width with `16dp` horizontal padding.
-*   **Spacing:** `4dp` between items.
-*   **Fade-out:** A `360dp` vertical gradient at the bottom dissolves the list into the timeline zone (`Color.Transparent → background`).
+*   **Items:** `PolaroidPillCard` — 68dp tall, full width with `16dp` horizontal padding.
+*   **Layout:** Text content (snippet + date) on left; polaroid thumbnail (58×68dp) on right when `photoUri != null`; polaroid hidden when no media.
+*   **Spacing:** `0dp` between items (divider is part of card).
+*   **Divider:** HorizontalDivider (0.5dp thick) below each card, `Color(0xFF2C2A29).copy(alpha = 0.08f)`, `16dp` horizontal padding.
+*   **Fade-out:** A `360dp` vertical gradient at the bottom dissolves the list into the dial zone (`Color.Transparent → background.copy(alpha = 0.20f)`).
 *   **Empty state:** When no memories match the selected sentiment, render the dot-rail timeline without dots (just the rail line) so the timeline chrome is always visible.
 *   **Scroll behaviour:** Driven by `DotRailTimeline` scrubber — `animateScrollToItem(focalIdx)` on focal index change.
+*   **Padding:** `statusBarsPadding().padding(bottom=210.dp, top=68.dp)` to clear header and dial area. Content padding: top=4dp, bottom=16dp.
+
+### PolaroidPillCard (Memory Row)
+*   **Structure:** Row with text column (left) and polaroid thumbnail (right).
+*   **Height:** 68dp (was 82dp).
+*   **Text column:** Memory snippet (nunitoFamily 16sp Regular, 1 line) + date label (labelSmall, #8E8A86).
+*   **Polaroid:** 58×68dp, 2dp rounded corners, white background, appleShadow(cornerRadius=2dp). Rendered only when `photoUri != null`.
+*   **Fallback (no photo):** Entire row height is text (no reserved right side).
+*   **Tilt:** Fixed per-card via `remember(index)` — deterministic decorative effect.
+
+### DialKnob (IndexScreen Sentiment Selector)
+*   **Hue Shift:** Emotion color hue is extracted and applied to dial elements via `Color.withHue(emotionHue)`:
+    - `rimAccent`: metallic rim highlight gradient
+    - `mutedFg`: secondary text/detail elements
+    - `neuDark`: border stroke
+    - Metallic rim gradient: 5 stops at (0.0, 0.22, 0.50, 0.78, 1.0) — mid-tones (0.22, 0.50, 0.78) apply emotion hue
+*   **Font:** Nunito (app default, not Trocchi)
+*   **Bottom container:** 210dp height (was 280dp). Padding: top=44dp, height=140dp for dial, bottom padding absorbed by dial height.
+
+### Fade Gradient (List→Dial Transition)
+*   **Position:** Bottom of memory list, full screen width.
+*   **Height:** 360dp.
+*   **Direction:** Vertical, transparent at top → background at bottom.
+*   **Alpha:** 20% max opacity on background color (was undefined/full opacity, now subtle).
+*   **Purpose:** Separates list zone from dial zone without hiding emotion gradient or scrim layers.
 
 ### Waveform (Audio Cards)
 *   30 bars rendered as a `Canvas` using the brand accent gradient (`#FF9966` → `#FF6699`).

@@ -50,6 +50,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
@@ -88,13 +89,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Shuffle
@@ -146,6 +145,7 @@ import androidx.compose.ui.res.painterResource
 import com.example.myapplication.R
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import kotlinx.coroutines.delay
@@ -187,7 +187,6 @@ import com.example.myapplication.util.AudioPlayer
 import com.example.myapplication.util.AudioRecorder
 import com.example.myapplication.util.audioFileDuration
 
-import com.example.myapplication.util.SpeechRecognizerManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -267,101 +266,35 @@ fun CaptureScreen(
     var selectedPhotoUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var recordedAudioUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var isRecording by remember { mutableStateOf(false) }
-    var isAudioPlaying by remember { mutableStateOf(false) }
+    var captureAudioState by remember { mutableStateOf(AudioState.IDLE) }
     var waveBarHeights by remember { mutableStateOf(List(7) { 0.3f }) }
     var recordingSeconds by remember { mutableStateOf(0) }
     val amplitudeSamples = remember { androidx.compose.runtime.mutableStateListOf<Float>() }
     var recordedWaveformJson by remember { mutableStateOf<String?>(null) }
     var captureAudioProgress by remember { mutableStateOf(0f) }
-    var isSpeechListening by remember { mutableStateOf(false) }
-    var speechPartialText by remember { mutableStateOf("") }
-    var speechError by remember { mutableStateOf<String?>(null) }
-    var textContentBeforeSpeech by remember { mutableStateOf("") }
-    var sttPending by remember { mutableStateOf(false) }
-    var selectedEmotion by rememberSaveable { mutableStateOf("NEUTRAL") }
-    var showEmotionSheet by remember { mutableStateOf(false) }
-
-    val sttGreen = Color(0xFF43A047)
-    val sttPulse = rememberInfiniteTransition(label = "sttPulse")
-    val sttScaleAnimated by sttPulse.animateFloat(
-        initialValue = 1f, targetValue = 1.12f,
-        animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
-        label = "sttScale"
-    )
-    val listenPulse = rememberInfiniteTransition(label = "listenPulse")
-    val dotAlpha by listenPulse.animateFloat(
-        initialValue = 0.4f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
-        label = "dotAlpha"
-    )
+    var selectedEmotion by rememberSaveable { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val audioRecorder = remember { AudioRecorder(context) }
-    val audioPlayer = remember { AudioPlayer() }
-    val speechRecognizerManager = remember { SpeechRecognizerManager(context) }
+    val audioPlayer = remember { AudioPlayer(context) }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // Release player and STT if user leaves screen
+    // Release player when user leaves screen
     androidx.compose.runtime.DisposableEffect(Unit) {
         onDispose {
             audioRecorder.stopRecording()
             audioPlayer.release()
-            speechRecognizerManager.release()
         }
-    }
-
-    fun appendSpeech(base: String, incoming: String) = when {
-        incoming.isBlank() -> base
-        base.isBlank() -> incoming
-        else -> "$base $incoming"
-    }
-
-    // Single entry-point for starting STT — used by LaunchedEffect, permission callback, and toolbar button
-    val startStt = {
-        textContentBeforeSpeech = textContent
-        speechError = null
-        speechRecognizerManager.startListening()
-        isSpeechListening = true
-    }
-
-    // Wire STT callbacks
-    speechRecognizerManager.onPartialResult = { partial ->
-        textContent = appendSpeech(textContentBeforeSpeech, partial)
-        speechPartialText = partial
-    }
-    speechRecognizerManager.onFinalResult = { text ->
-        textContent = appendSpeech(textContentBeforeSpeech, text)
-        textFieldSelection = TextRange(textContent.length)
-        isSpeechListening = false
-        speechPartialText = ""
-        focusRequester.requestFocus()
-        keyboardController?.show()
-    }
-    speechRecognizerManager.onError = { error ->
-        textContent = textContentBeforeSpeech
-        speechError = if (error == android.speech.SpeechRecognizer.ERROR_CLIENT ||
-                         error == android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-            "Speech recognition not available on this device."
-        } else {
-            "Couldn't understand. Tap the mic to try again."
-        }
-        isSpeechListening = false
-        speechPartialText = ""
     }
 
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
         contract = RequestPermission(),
         onResult = { isGranted ->
-            if (isGranted) {
-                if (sttPending) {
-                    startStt()
-                } else if (!isRecording) {
-                    audioRecorder.startRecording()
-                    isRecording = true
-                }
+            if (isGranted && !isRecording) {
+                audioRecorder.startRecording()
+                isRecording = true
             }
-            sttPending = false
         }
     )
 
@@ -402,14 +335,14 @@ fun CaptureScreen(
                 originalText = t
                 originalPhotoUri = p
                 originalAudioUri = a
-                selectedEmotion = existingMemory.emotionalTone ?: "NEUTRAL"
+                selectedEmotion = existingMemory.emotionalTone
                 // Move cursor to end and open keyboard
                 textFieldSelection = TextRange(t.length)
             }
-            // Small delay so the text field is composed before requesting focus
-            delay(100)
+            // Wait for crossfade transition (280ms) to fully settle, then request focus.
+            // keyboardController.show() is called reactively via onFocusChanged on the text field.
+            delay(400)
             focusRequester.requestFocus()
-            keyboardController?.show()
         }
     }
 
@@ -417,6 +350,7 @@ fun CaptureScreen(
     androidx.compose.runtime.LaunchedEffect(action) {
         when (action) {
             "text" -> {
+                delay(400)  // Wait for crossfade transition
                 focusRequester.requestFocus()
                 keyboardController?.show()
             }
@@ -432,14 +366,11 @@ fun CaptureScreen(
             "image" -> {
                 photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             }
-            "speech" -> {
-                val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-                if (permission == PackageManager.PERMISSION_GRANTED) {
-                    startStt()
-                } else {
-                    sttPending = true
-                    recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                }
+            null -> {
+                // Editing existing memory — auto-focus text field and show keyboard
+                delay(400)  // Wait for crossfade transition
+                focusRequester.requestFocus()
+                keyboardController?.show()
             }
         }
     }
@@ -476,8 +407,8 @@ fun CaptureScreen(
     }
 
     // Poll playback progress for audio preview waveform
-    androidx.compose.runtime.LaunchedEffect(isAudioPlaying) {
-        if (isAudioPlaying) {
+    androidx.compose.runtime.LaunchedEffect(captureAudioState) {
+        if (captureAudioState == AudioState.PLAYING) {
             while (true) {
                 captureAudioProgress = audioPlayer.currentPosition.toFloat() / audioPlayer.duration
                 delay(100)
@@ -504,39 +435,6 @@ fun CaptureScreen(
                 }
             }
         )
-    }
-
-    // ─── Emotion bottom sheet ─────────────────────────────────────────────────
-    if (showEmotionSheet) {
-        ModalBottomSheet(onDismissRequest = { showEmotionSheet = false }) {
-            Column(modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
-                Text(
-                    text = "How are you feeling?",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-                listOf("HAPPY", "SAD", "ANXIOUS", "CALM", "EXCITED", "NEUTRAL").forEach { tone ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { selectedEmotion = tone; showEmotionSheet = false }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(emotionEmoji(tone), fontSize = 24.sp)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            emotionLabel(tone),
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (selectedEmotion == tone) {
-                            Icon(Icons.Default.Check, contentDescription = null, tint = emotionColor(tone))
-                        }
-                    }
-                }
-            }
-        }
     }
 
     // ─── Dynamic background ────────────────────────────────────────────────────
@@ -694,7 +592,9 @@ fun CaptureScreen(
             // ─── Normal Capture Mode ───────────────────────────────────────────
             val hasContent = textContent.isNotBlank() || selectedPhotoUri != null || recordedAudioUri != null
             Column(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding()
             ) {
                 // Top Bar — exactly 68dp tall: matches MemoryDetail navSpacer (12+44+12)
                 androidx.compose.foundation.layout.Row(
@@ -756,103 +656,24 @@ fun CaptureScreen(
                     }
                 }
 
-                // Optional Audio Preview with play/stop  — 44dp horizontal
-                if (recordedAudioUri != null) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                // Audio Preview Hero — same component as MemoryDetailScreen
+                recordedAudioUri?.let { audioUri ->
+                    Box(
                         modifier = Modifier
-                            .padding(horizontal = 44.dp)
+                            .fillMaxWidth()
+                            .height(160.dp)
+                            .padding(horizontal = 16.dp)
                             .padding(bottom = 16.dp)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                            .clip(RoundedCornerShape(12.dp))
                     ) {
-                        IconButton(
-                            onClick = {
-                                if (isAudioPlaying) {
-                                    audioPlayer.stop()
-                                    isAudioPlaying = false
-                                } else {
-                                    recordedAudioUri?.let { uri ->
-                                        audioPlayer.playFile(uri) { isAudioPlaying = false }
-                                        isAudioPlaying = true
-                                    }
-                                }
-                            },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isAudioPlaying) "Pause" else "Play memo",
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        val captureWavePoints = remember(recordedWaveformJson) {
-                            recordedWaveformJson
-                                ?.removeSurrounding("[", "]")
-                                ?.split(",")
-                                ?.mapNotNull { it.toFloatOrNull() }
-                                .orEmpty()
-                        }
-                        if (captureWavePoints.isNotEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(32.dp)
-                            ) {
-                                Canvas(modifier = Modifier.fillMaxSize()) {
-                                    val barW = 4.dp.toPx()
-                                    val gap = 2.dp.toPx()
-                                    val step = barW + gap
-                                    val totalNeeded = captureWavePoints.size * step - gap
-                                    val xScale = (size.width / totalNeeded).coerceAtMost(1f)
-                                    val eBarW = barW * xScale
-                                    val eStep = step * xScale
-                                    captureWavePoints.forEachIndexed { i, v ->
-                                        val x = i * eStep
-                                        val h = v * size.height
-                                        drawRect(
-                                            brush = Brush.verticalGradient(
-                                                colors = listOf(GradientPeach, GradientPink),
-                                                startY = size.height - h,
-                                                endY = size.height
-                                            ),
-                                            topLeft = androidx.compose.ui.geometry.Offset(x, size.height - h),
-                                            size = androidx.compose.ui.geometry.Size(eBarW, h)
-                                        )
-                                    }
-                                    val headX = captureAudioProgress * size.width
-                                    drawLine(
-                                        color = Color.White,
-                                        start = androidx.compose.ui.geometry.Offset(headX, 0f),
-                                        end = androidx.compose.ui.geometry.Offset(headX, size.height),
-                                        strokeWidth = 2.dp.toPx()
-                                    )
-                                }
-                            }
-                        } else {
-                            Text(
-                                text = if (isAudioPlaying) "Playing..." else "Voice Memo",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                audioPlayer.stop()
-                                isAudioPlaying = false
-                                recordedAudioUri = null
-                            },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Remove audio",
-                                tint = MaterialTheme.colorScheme.secondary
-                            )
-                        }
+                        AudioHeroSection(
+                            audioFilePath = audioUri,
+                            audioPlayer = audioPlayer,
+                            audioState = captureAudioState,
+                            duration = null,
+                            onStateChange = { captureAudioState = it },
+                            waveformData = recordedWaveformJson
+                        )
                     }
                 }
 
@@ -860,12 +681,8 @@ fun CaptureScreen(
                 BasicTextField(
                     value = TextFieldValue(textContent, textFieldSelection),
                     onValueChange = { textContent = it.text; textFieldSelection = it.selection },
-                    readOnly = isSpeechListening,
                     textStyle = MaterialTheme.typography.bodyLarge.copy(
-                        color = if (isSpeechListening && speechPartialText.isNotEmpty())
-                            MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-                        else
-                            MaterialTheme.colorScheme.onBackground,
+                        color = MaterialTheme.colorScheme.onBackground,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Start
                     ),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -873,7 +690,10 @@ fun CaptureScreen(
                         .fillMaxWidth()
                         .weight(1f)
                         .padding(horizontal = 44.dp)
-                        .focusRequester(focusRequester),
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { focusState ->
+                            if (focusState.isFocused) keyboardController?.show()
+                        },
                     decorationBox = { innerTextField ->
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -958,8 +778,7 @@ fun CaptureScreen(
                     }
                 }
 
-                // Media icons + STT mic — just above suggestion chips, all grouped right
-                val sttScale = if (isSpeechListening) sttScaleAnimated else 1f
+                // Media icons: audio + photo
                 androidx.compose.foundation.layout.Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -968,42 +787,9 @@ fun CaptureScreen(
                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Tertiary: STT Mic — left of waveform icon
-                    Box(
-                        modifier = Modifier
-                            .scale(sttScale)
-                            .size(40.dp)
-                            .background(
-                                if (isSpeechListening) sttGreen else MaterialTheme.colorScheme.secondary.copy(alpha = 0.10f),
-                                CircleShape
-                            )
-                            .clickable {
-                                if (isSpeechListening) {
-                                    speechRecognizerManager.stopListening()
-                                    isSpeechListening = false
-                                    speechPartialText = ""
-                                } else {
-                                    val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-                                    if (permission == PackageManager.PERMISSION_GRANTED) {
-                                        startStt()
-                                    } else {
-                                        sttPending = true
-                                        recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                    }
-                                }
-                            },
-                        contentAlignment = Alignment.Center
+                    androidx.compose.foundation.layout.Row(
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = if (isSpeechListening) "Stop listening" else "Speech to text",
-                            tint = if (isSpeechListening) Color.White else MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
                     // GraphicEq | divider | Image
                     Box(
                         modifier = Modifier
@@ -1047,111 +833,45 @@ fun CaptureScreen(
                             modifier = Modifier.size(22.dp)
                         )
                     }
-                }
-
-                // Listening indicator + error — shown when STT is active
-                if (isSpeechListening || speechError != null) {
-                    androidx.compose.foundation.layout.Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 44.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center
-                    ) {
-                        if (isSpeechListening) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .background(sttGreen.copy(alpha = dotAlpha), CircleShape)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (speechPartialText.isEmpty()) "Listening…" else "Listening",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = sttGreen
-                            )
-                        }
-                        speechError?.let { err ->
-                            Text(
-                                text = err,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
                     }
-                }
+                } // end media icons Row
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // ─── Bottom row: emotion pill (left) + Save button (right) ──────
-                androidx.compose.foundation.layout.Row(
+                // ─── Save button — full width, pill shape, edge to edge ──────────
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 12.dp)
+                        .height(52.dp)
+                        .then(if (hasContent) Modifier.appleShadow(100.dp) else Modifier)
+                        .background(
+                            if (hasContent)
+                                Brush.horizontalGradient(listOf(GradientPeach, GradientPink))
+                            else
+                                Brush.horizontalGradient(listOf(
+                                    Color.Gray.copy(alpha = 0.15f),
+                                    Color.Gray.copy(alpha = 0.15f)
+                                )),
+                            RoundedCornerShape(100.dp)
+                        )
+                        .then(
+                            if (hasContent) Modifier.clickable {
+                                viewModel.saveMemory(
+                                    textContent, selectedPhotoUri, recordedAudioUri,
+                                    recordedWaveformJson, selectedEmotion
+                                ) { onNavigateBack() }
+                            } else Modifier
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Emotion pill
-                    androidx.compose.foundation.layout.Row(
-                        modifier = Modifier
-                            .background(Color.White, RoundedCornerShape(50))
-                            .appleShadow(50.dp)
-                            .clickable { showEmotionSheet = true }
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(emotionEmoji(selectedEmotion), fontSize = 16.sp)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            emotionLabel(selectedEmotion),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-
-                    // Save button
-                    Box(
-                        modifier = Modifier
-                            .height(48.dp)
-                            .widthIn(min = 120.dp)
-                            .then(if (hasContent) Modifier.appleShadow(18.dp) else Modifier)
-                            .background(
-                                if (hasContent)
-                                    Brush.horizontalGradient(listOf(GradientPeach, GradientPink))
-                                else
-                                    Brush.horizontalGradient(listOf(
-                                        Color.Gray.copy(alpha = 0.15f),
-                                        Color.Gray.copy(alpha = 0.15f)
-                                    )),
-                                RoundedCornerShape(18.dp)
-                            )
-                            .then(
-                                if (hasContent) Modifier.clickable {
-                                    viewModel.saveMemory(
-                                        textContent, selectedPhotoUri, recordedAudioUri,
-                                        recordedWaveformJson, selectedEmotion
-                                    ) { onNavigateBack() }
-                                } else Modifier
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Save memory",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (hasContent) Color.White else Color.Gray.copy(alpha = 0.4f),
-                            modifier = Modifier.padding(horizontal = 20.dp)
-                        )
-                    }
+                    Text(
+                        text = "Save memory",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (hasContent) Color.White else Color.Gray.copy(alpha = 0.4f)
+                    )
                 }
 
             }

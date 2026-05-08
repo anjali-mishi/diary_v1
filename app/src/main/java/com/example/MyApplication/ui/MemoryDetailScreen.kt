@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -57,6 +59,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,6 +74,10 @@ import com.example.myapplication.util.audioFileDuration
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+enum class AudioState {
+    IDLE, PLAYING, PAUSED
+}
 
 @Composable
 fun MemoryDetailScreen(
@@ -152,8 +159,9 @@ fun MemoryDetailScreen(
     }
 
     // ── Audio ──────────────────────────────────────────────────────────────
-    val audioPlayer = remember { AudioPlayer() }
-    var isAudioPlaying by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val audioPlayer = remember { AudioPlayer(context) }
+    var audioState by remember { mutableStateOf(AudioState.IDLE) }
     DisposableEffect(memoryId) { onDispose { audioPlayer.release() } }
 
     val audioDuration = remember(memory?.audioFilePath) { audioFileDuration(memory?.audioFilePath) }
@@ -220,10 +228,15 @@ fun MemoryDetailScreen(
                                 AudioHeroSection(
                                     audioFilePath = memory.audioFilePath,
                                     audioPlayer = audioPlayer,
-                                    isPlaying = isAudioPlaying,
+                                    audioState = audioState,
                                     duration = audioDuration,
-                                    onPlayToggle = { isAudioPlaying = it },
-                                    waveformData = memory.waveformData
+                                    onStateChange = { audioState = it },
+                                    waveformData = memory.waveformData,
+                                    onDeleteAudio = {
+                                        audioPlayer.release()
+                                        audioState = AudioState.IDLE
+                                        viewModel.deleteAudioOnly(memory.id)
+                                    }
                                 )
                             }
                         }
@@ -234,8 +247,9 @@ fun MemoryDetailScreen(
                             emotionColor = emotionColor,
                             audioDuration = audioDuration,
                             audioPlayer = audioPlayer,
-                            isAudioPlaying = isAudioPlaying,
-                            onPlayToggle = { isAudioPlaying = it }
+                            audioState = audioState,
+                            onStateChange = { audioState = it },
+                            viewModel = viewModel
                         )
                     }
                 } else {
@@ -300,12 +314,14 @@ private fun MediaContentSection(
     emotionColor: Color,
     audioDuration: String?,
     audioPlayer: AudioPlayer,
-    isAudioPlaying: Boolean,
-    onPlayToggle: (Boolean) -> Unit
+    audioState: AudioState,
+    onStateChange: (AudioState) -> Unit,
+    viewModel: DiaryViewModel? = null
 ) {
     val dateLabel = remember(memory.createdAt) {
         SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date(memory.createdAt))
     }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -323,11 +339,23 @@ private fun MediaContentSection(
         Row(modifier = Modifier.padding(horizontal = 44.dp)) {
             DateAndToneRow(dateLabel, memory.emotionalTone, emotionColor)
         }
-        if (memory.audioFilePath != null) {
+        if (memory.audioFilePath != null && memory.photoFilePath != null) {
             Spacer(Modifier.height(16.dp))
-            AudioPill(audioDuration, isAudioPlaying) {
-                if (isAudioPlaying) { audioPlayer.stop(); onPlayToggle(false) }
-                else { audioPlayer.playFile(memory.audioFilePath) { onPlayToggle(false) }; onPlayToggle(true) }
+            AudioPill(audioDuration, audioState) {
+                when (audioState) {
+                    AudioState.IDLE -> {
+                        audioPlayer.playFile(memory.audioFilePath) { onStateChange(AudioState.IDLE) }
+                        onStateChange(AudioState.PLAYING)
+                    }
+                    AudioState.PLAYING -> {
+                        audioPlayer.pause()
+                        onStateChange(AudioState.PAUSED)
+                    }
+                    AudioState.PAUSED -> {
+                        audioPlayer.resume()
+                        onStateChange(AudioState.PLAYING)
+                    }
+                }
             }
         }
     }
@@ -386,19 +414,25 @@ private fun DateAndToneRow(dateLabel: String, tone: String?, emotionColor: Color
 }
 
 @Composable
-private fun AudioHeroSection(
+internal fun AudioHeroSection(
     audioFilePath: String,
     audioPlayer: AudioPlayer,
-    isPlaying: Boolean,
+    audioState: AudioState,
     duration: String?,
-    onPlayToggle: (Boolean) -> Unit,
-    waveformData: String?
+    onStateChange: (AudioState) -> Unit,
+    waveformData: String?,
+    onDeleteAudio: () -> Unit = {}
 ) {
+    val isPlaying = audioState == AudioState.PLAYING
+
     val waveBarCount = 30
-    val waveBarHeights = remember(waveformData, audioFilePath) {
-        val parsed = waveformData?.removeSurrounding("[", "]")?.split(",")?.mapNotNull { it.trim().toFloatOrNull() }?.takeIf { it.isNotEmpty() }
-        parsed?.let { data -> List(waveBarCount) { i -> data[(i.toFloat() / waveBarCount * data.size).toInt().coerceAtMost(data.size - 1)].coerceIn(0.15f, 1f) } }
-            ?: run { val rng = kotlin.random.Random(audioFilePath.hashCode()); List(waveBarCount) { 0.15f + 0.85f * rng.nextFloat() } }
+    val svgWaveformHeights = listOf(
+        0.229f, 0.468f, 0.770f, 0.770f, 0.867f, 0.994f, 0.867f, 0.770f, 0.612f, 0.468f,
+        0.468f, 0.229f, 0.468f, 0.586f, 0.770f, 0.586f, 0.468f, 0.229f, 0.229f, 0.070f,
+        0.468f, 0.770f, 0.867f, 0.994f, 0.867f, 0.770f, 0.586f, 0.468f, 0.229f, 0.229f
+    )
+    val waveBarHeights = remember(audioFilePath) {
+        svgWaveformHeights.map { it.coerceIn(0.15f, 1f) }
     }
 
     var playProgress by remember { mutableStateOf(0f) }
@@ -412,43 +446,63 @@ private fun AudioHeroSection(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
-            .clickable {
-                if (isPlaying) { audioPlayer.stop(); onPlayToggle(false) }
-                else { audioPlayer.playFile(audioFilePath) { onPlayToggle(false) }; onPlayToggle(true) }
-            },
+            .background(Color(0xFF414141).copy(alpha = 0.23f))
+            .border(1.dp, Color(0xFF000000).copy(alpha = 0.10f), RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 32.dp)) {
             val barW = size.width / (waveBarCount * 1.6f)
             val gap = barW * 0.6f
+            val playedBarIndex = (playProgress * waveBarCount).toInt()
             waveBarHeights.forEachIndexed { i, frac ->
-                val scale = if (isPlaying) (1f + frac * 0.5f) else frac
-                val barH = scale * size.height
+                val barH = frac * size.height
                 val x = i * (barW + gap)
                 val y = (size.height - barH) / 2f
+                val barColor = if (i < playedBarIndex) Color(0xFF1C1C1E) else Color.White
                 drawRoundRect(
-                    color = Color(0xFF1C1C1E),
+                    color = barColor,
                     topLeft = Offset(x, y),
                     size = Size(barW, barH),
                     cornerRadius = CornerRadius(barW / 2f)
                 )
             }
         }
-        Row(modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.height(2.dp).width(60.dp).background(Color(0xCC000000), RoundedCornerShape(1.dp))) {
-                Box(modifier = Modifier.height(2.dp).width((60.dp * playProgress)).background(Color(0xFF1C1C1E), RoundedCornerShape(1.dp)))
-            }
-            Box(modifier = Modifier.size(8.dp).background(Color(0xFF1C1C1E), CircleShape))
-            duration?.let {
-                Text(it, style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp), color = Color(0x9E000000))
+        if (audioState != AudioState.PLAYING) {
+            IconButton(
+                onClick = {
+                    when (audioState) {
+                        AudioState.IDLE -> {
+                            audioPlayer.playFile(audioFilePath) { onStateChange(AudioState.IDLE) }
+                            onStateChange(AudioState.PLAYING)
+                        }
+                        AudioState.PLAYING -> {
+                            audioPlayer.pause()
+                            onStateChange(AudioState.PAUSED)
+                        }
+                        AudioState.PAUSED -> {
+                            audioPlayer.resume()
+                            onStateChange(AudioState.PLAYING)
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(60.dp)
+                    .background(Color(0xFF1C1C1E), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Play",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
             }
         }
     }
 }
 
 @Composable
-private fun AudioPill(duration: String?, isPlaying: Boolean, onToggle: () -> Unit) {
+private fun AudioPill(duration: String?, audioState: AudioState, onToggle: () -> Unit) {
     Row(
         modifier = Modifier
             .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f), RoundedCornerShape(50))
@@ -458,7 +512,7 @@ private fun AudioPill(duration: String?, isPlaying: Boolean, onToggle: () -> Uni
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Icon(
-            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+            imageVector = if (audioState == AudioState.PLAYING) Icons.Default.Pause else Icons.Default.PlayArrow,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.secondary,
             modifier = Modifier.size(18.dp)

@@ -118,29 +118,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
     Scaffold(
         modifier = modifier,
         contentWindowInsets = WindowInsets(0),
-        topBar = {
-            if (isIndex) {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "My Diaries",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onBackground
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = topBarBg)
-                )
-            }
-        }
+        topBar = {}
     ) { innerPadding ->
         SharedTransitionLayout {
             CompositionLocalProvider(
@@ -245,6 +223,10 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                                     onNavigateBack = {
                                         Log.d(TAG, "IndexScreen → back")
                                         navController.popBackStack()
+                                    },
+                                    onNavigateToCapture = {
+                                        Log.d(TAG, "IndexScreen → Capture (new)")
+                                        navController.navigate("${Screen.Capture.name}?action=text")
                                     },
                                     onNavigateToEdit = { memoryId ->
                                         Log.d(TAG, "IndexScreen → Capture (edit memoryId=$memoryId)")

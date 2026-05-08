@@ -35,6 +35,14 @@ class DiaryViewModel(private val repository: MemoryRepository) : ViewModel() {
         }
     }
 
+    fun deleteAudioOnly(memoryId: String) {
+        Log.d(TAG, "deleteAudioOnly: memoryId=$memoryId")
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteAudioOnly(memoryId)
+            Log.d(TAG, "deleteAudioOnly: done memoryId=$memoryId")
+        }
+    }
+
     class Factory(private val repository: MemoryRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {

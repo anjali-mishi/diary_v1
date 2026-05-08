@@ -46,4 +46,24 @@ class MemoryRepository(private val memoryDao: MemoryDao) {
         Log.d(TAG, "setBookmark: id=$id bookmarked=$bookmarked")
         memoryDao.updateMemory(updated)
     }
+
+    fun deleteAudioOnly(id: String) {
+        val memory = memoryDao.getMemoryById(id) ?: return
+        Log.d(TAG, "deleteAudioOnly: id=$id audioFilePath=${memory.audioFilePath}")
+        memory.audioFilePath?.let { filePath ->
+            try {
+                java.io.File(filePath).delete()
+                Log.d(TAG, "deleteAudioOnly: file deleted $filePath")
+            } catch (e: Exception) {
+                Log.e(TAG, "deleteAudioOnly: error deleting file — ${e.message}", e)
+            }
+        }
+        val updated = memory.copy(
+            audioFilePath = null,
+            waveformData = null,
+            updatedAt = System.currentTimeMillis()
+        )
+        memoryDao.updateMemory(updated)
+        Log.d(TAG, "deleteAudioOnly: audio cleared from memory id=$id")
+    }
 }

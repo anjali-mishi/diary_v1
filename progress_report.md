@@ -119,6 +119,58 @@ The `IndexScreen` was fully redesigned from a bento/timeline grid into a **senti
 
 ---
 
+### 🎹 CaptureScreen Polish Sprint (Post RTGL1.0 — May 2026)
+
+#### Keyboard-Aware Bottom Toolbar
+- Added `Modifier.imePadding()` to the CaptureScreen Column. As the keyboard slides in, the full bottom cluster (action icons row + Save button) rides up with it in sync. No manual animation needed — `imePadding()` is animated automatically by Compose.
+- Removed `navigationBarsPadding()` from the bottom row (subsumed by `imePadding()`).
+
+#### Keyboard Auto-Open Fix (Edit Mode)
+- Previous approach (`keyboardController?.show()` at an arbitrary delay) was unreliable — the IME ignores `show()` calls during ongoing window transitions.
+- Fixed with a reactive pattern: `onFocusChanged { if (isFocused) keyboardController?.show() }` on the `BasicTextField`. `show()` is now called only after the system confirms focus is granted, never during the transition.
+- Delay kept at 400ms (≥ 280ms crossfade) to ensure focus is only requested after the transition settles.
+
+#### Save Button Redesign
+- Full-width pill: `fillMaxWidth()`, `padding(horizontal = 16dp)`, `height(52dp)`, `RoundedCornerShape(100dp)`.
+- Removes the old half-width right-aligned layout; button now feels like a primary CTA across the full screen.
+
+#### Emotion Tab Moved to Action Row
+- Emotion picker moved from its own bottom row into the left side of the action icons row.
+- Bare styling: emoji + label text + `↓` caret (`ExpandMore`). No pill background, no `appleShadow`. Taps still open the `ModalBottomSheet`.
+- Caret changed from `KeyboardArrowRight` → `ExpandMore` (semantically correct for a bottom sheet).
+- Bottom row now contains only the Save button.
+
+#### STT / Mic Removed
+- `SpeechRecognizerManager`, all STT state vars (`isSpeechListening`, `speechPartialText`, `speechError`, `sttPending`), animations (`sttPulse`, `listenPulse`), callbacks, listening indicator UI, and the mic `Box` button all removed from `CaptureScreen`.
+- `recordAudioPermissionLauncher` simplified — the `sttPending` branch removed; it now only handles audio recording permission.
+- `readOnly = isSpeechListening` and the conditional text color on `BasicTextField` removed — text field is always editable.
+- Reason: mic was showing as an unexplained floating system toolbar on keyboard open; the feature was not part of the core product story for launch.
+
+---
+
+### ✏️ CaptureScreen Edit Mode Redesign + Codebase Refactor (Tag: RTGL1.0 — May 2026)
+
+#### Codebase Refactor: Screens.kt Split (Task 58d — DONE)
+- `Screens.kt` (~2200 lines) fully split into per-screen files:
+  - `ui/DiaryScreen.kt` — DiaryScreen + BentoMemoryCard + bottom sheet
+  - `ui/CaptureScreen.kt` — CaptureScreen (all capture + edit logic)
+  - `ui/IndexScreen.kt` — IndexScreen + PolaroidPillCard + DotRailTimeline + DialKnob wiring
+  - `ui/Shared.kt` — shared helpers (appleShadow, emotionColor, etc.)
+  - `ui/MemoryDetailScreen.kt` — already existed as separate file
+- No behaviour changes. Build verified clean post-split.
+
+#### Edit Screen Visual Overhaul
+- **Background:** Two-layer system matching MemoryDetailScreen — vertical emotion gradient + scrim image overlay. Gradient keys off `selectedEmotion` in edit mode, giving live tonal feedback as user changes emotion.
+- **Nav row:** 68dp height, white-circle icon buttons with `appleShadow()`, close button right-aligned. Matches MemoryDetailScreen floating header exactly.
+- **Content padding:** Body content (`44dp` horizontal), UI controls (`24dp` horizontal) — consistent with MemoryDetailScreen.
+- **Spacer:** 32dp gap between nav row and first content block.
+- **Emotion picker:** White pill button (bottom-left), opens `ModalBottomSheet` with 6 emotion options. Checkmark on selected. Replaces the old inline emotion row.
+- **Save button:** Full-width gradient button at the bottom. Stays visible regardless of keyboard state.
+- **Crossfade transition:** Detail → Edit and Edit → Detail use fade (280ms) instead of the slide-up used for new captures. Nav-aware transitions in `AppNavigation.kt` detect source/target route.
+- **Auto-focus:** On entering edit mode, cursor is placed at end of existing text and device keyboard opens automatically (`delay(100)` → `focusRequester.requestFocus()` + `keyboardController.show()`).
+
+---
+
 ## 3. The Path Forward (Current Objective)
 
 **Phases 1–14, all post-phase polish, and the IndexScreen sentinel dial redesign are complete.**
@@ -167,4 +219,86 @@ The `IndexScreen` was fully redesigned from a bento/timeline grid into a **senti
 ### Tasks Deferred (not blocking launch)
 - Task 58d (Split Screens.kt) — tech debt, post-launch v1.1
 - Task 59 (DB Migration 2→3) — needed only for Phase B bookmarks, not for launch
+
+---
+
+## 5. Latest Session Completions (2026-05-07 & 2026-05-08)
+
+### IndexScreen Final Polish & Visual Redesign (2026-05-08)
+
+Aligned IndexScreen visual language with the rest of the app — applied the same background/header system established in MemoryDetailScreen and CaptureScreen. Key changes:
+
+**Background System:**
+- Implemented two-layer background: vertical emotion gradient (appBackground → emotionColor.copy(0.18f)) + memory_detail_scrim image overlay
+- Fade gradient (bottom of list) reduced from undefined to 20% alpha (was preventing emotion gradient visibility, now provides subtle separation)
+
+**Header Navigation:**
+- Redesigned header: back button + title "My Diaries" on left side, Plus button (capture trigger) on right side
+- Floating Row layout using SpaceBetween (no fixed height constraints, uses statusBarsPadding + padding)
+- Matches white-circle button style with appleShadow from MemoryDetailScreen
+
+**Memory Card Layout (PolaroidPillCard):**
+- Restructured to: text content on left (snippet + date), polaroid on right (only when photoUri exists)
+- Row height compacted from 82dp to 68dp
+- HorizontalDivider (0.5dp, transparent) between each card for subtle list separation
+- Polaroid hidden when no media present (previously always shown)
+
+**Shuffle Button Redesign:**
+- Changed to secondary button style: white background, black text, primary-color icon (#FF9966)
+- Positioned TopEnd (over dial knob area) with subtle appleShadow
+- RoundedCornerShape(20dp) pill shape, lighter visual weight than primary buttons
+
+**DialKnob Hue Shift:**
+- Replaced saturation/brightness shifting with hue-only shifting from emotion color
+- Implemented `Color.hue()` and `Color.withHue(hue)` helpers using `android.graphics.Color.RGBToHSV/HSVToColor`
+- Applies emotion hue to: `rimAccent`, `mutedFg`, `neuDark`, metallic rim gradient stops (0.22, 0.50, 0.78)
+- Font changed from Trocchi → Nunito (app default), improving readability in pill carousel
+
+**Spacing Compaction:**
+- Bottom container height: 280dp → 210dp
+- List bottom padding: 280dp → 210dp
+- Dial padding: top=44dp, height=140dp (from 155dp)
+- List contentPadding: top=4dp, bottom=16dp, spacedBy=0dp
+- Row height: 82dp → 68dp
+- Removed large vertical gaps between list and dial area
+
+**Plus Button Navigation:**
+- Added onNavigateToCapture parameter to IndexScreen
+- Wired to bottom nav's "Add new memory" flow (`CaptureScreen?action=text`)
+
+### Audio Hero Component Finalization (Tasks A1-A5)
+
+**Visual Refinement:**
+- SVG waveform integration: 30 bars with professionally-designed amplitude heights extracted from wave.svg
+- Background: #414141 at 0.23 alpha (subtle dark), 1dp stroke (#000000 at 0.10 alpha)
+- Waveform coloring: white bars for unplayed, black bars for played portions
+- Play button behavior: 60dp dark circle (#1C1C1E) with white icon, centered, **disappears during playback**
+
+**Implementation:**
+- `AudioHeroSection` made `internal` so both MemoryDetailScreen and CaptureScreen can reuse it
+- AudioState enum (IDLE, PLAYING, PAUSED) used consistently across both screens
+- Session-scoped pause/resume: position retained within session, resets to 0 on navigation away
+- Audio focus handling: pauses on phone calls, app backgrounding, other media (AudioFocusRequest API with listener)
+- Playhead progress: calculated from currentPosition / duration, updated every 100ms
+
+**Design Decisions:**
+- Removed delete button from audio hero (kept as independent action if needed elsewhere)
+- Audio-only memories: hidden pill, hero is sole audio surface
+- Photo + audio memories: photo is hero, audio renders as pill below text content
+
+### UX Fixes & Navigation Polish
+
+**Keyboard Auto-Focus on Edit (CaptureScreen):**
+- Root cause: LaunchedEffect only handled action cases for sheet (text/voice/image/speech), missing null case for editing
+- Fix: Added null action case with focusRequester.requestFocus() + keyboardController?.show() after 400ms crossfade delay
+- Now keyboard auto-opens when entering edit mode, matching new-memory-from-sheet behavior
+
+**Scroll Position Retention (DiaryScreen):**
+- Root cause: rememberLazyListState() doesn't preserve state across back-navigation
+- Fix: Added rememberSaveable state vars for scroll index + offset, implemented restore on return
+- Continuously save current scroll position via LaunchedEffect
+- Changed auto-scroll-to-top logic: only triggers on NEW memory additions, not on back-nav
+- Users now return to their last scroll position when exiting MemoryDetailScreen
+
+---
 - Phases B, C, D, E — post-launch roadmap unchanged

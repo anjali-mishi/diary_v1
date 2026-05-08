@@ -286,15 +286,35 @@ fun DiaryScreen(
     ) {
         val sheetHeight = maxHeight * 0.15f
 
-        // Scroll state for list tracking
+        // Scroll state for list tracking — preserved across navigation
         val listState = rememberLazyListState()
 
-        // Scroll to newest memory when a new one is added
+        // Save scroll position when navigating away
+        val savedScrollIndex = rememberSaveable { mutableStateOf(0) }
+        val savedScrollOffset = rememberSaveable { mutableStateOf(0) }
+
+        // Restore scroll position on return from navigation
+        LaunchedEffect(Unit) {
+            if (savedScrollIndex.value > 0 || savedScrollOffset.value > 0) {
+                listState.scrollToItem(savedScrollIndex.value, savedScrollOffset.value)
+            }
+        }
+
+        // Save scroll position whenever it changes
+        LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
+            savedScrollIndex.value = listState.firstVisibleItemIndex
+            savedScrollOffset.value = listState.firstVisibleItemScrollOffset
+        }
+
+        // Only scroll to newest when a NEW memory is added (list size increased)
         val memoriesSize = memories.size
+        var previousSize by rememberSaveable { mutableStateOf(0) }
         LaunchedEffect(memoriesSize) {
-            if (memoriesSize > 0) {
+            if (memoriesSize > previousSize && previousSize > 0) {
+                // New memory added — scroll to top
                 listState.animateScrollToItem(0)
             }
+            previousSize = memoriesSize
         }
 
         // Pill bar entrance — only animates on first app open, not on back-navigation
@@ -621,7 +641,8 @@ fun MemoryCard(
                 if (memory.audioFilePath != null) {
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    val cardAudioPlayer = remember { AudioPlayer() }
+                    val context = LocalContext.current
+                    val cardAudioPlayer = remember { AudioPlayer(context) }
                     var isPlaying by remember { mutableStateOf(false) }
                     var playProgress by remember { mutableStateOf(0f) }
 
@@ -896,7 +917,8 @@ fun BentoMemoryCard(
         }
     } else if (memory.audioFilePath != null && memory.textContent?.isNotBlank() == true) {
         // Attached audio variant: inline waveform player + text content
-        val attachedAudioPlayer = remember { AudioPlayer() }
+        val context = LocalContext.current
+        val attachedAudioPlayer = remember { AudioPlayer(context) }
         var attachedIsPlaying by remember { mutableStateOf(false) }
         DisposableEffect(memory.audioFilePath) { onDispose { attachedAudioPlayer.release() } }
         val attachedWaveBarCount = 20
@@ -1007,7 +1029,8 @@ fun BentoMemoryCard(
             }
         }
     } else if (memory.audioFilePath != null) {
-        val audioPlayer = remember { AudioPlayer() }
+        val context = LocalContext.current
+        val audioPlayer = remember { AudioPlayer(context) }
         var isPlaying by remember { mutableStateOf(false) }
         val audioDuration = remember(memory.audioFilePath) { audioFileDuration(memory.audioFilePath) }
         DisposableEffect(memory.audioFilePath) { onDispose { audioPlayer.release() } }

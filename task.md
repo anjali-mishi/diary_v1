@@ -410,15 +410,31 @@ Text-only memory:
 
 ## Phase A-pre: Codebase Health
 
-- [ ] **Task 58d: Split Screens.kt into per-screen files.** ⏸ DEFERRED — tech debt, not a launch blocker. Do post-launch v1.1.
-  - `Screens.kt` is ~2200 lines and growing. Split into:
+- [x] **Task 58d: Split Screens.kt into per-screen files.** ✅ DONE (May 2026, tag RTGL1.0)
+  - `Screens.kt` split into:
     - `ui/DiaryScreen.kt` — DiaryScreen + BentoMemoryCard + bottom sheet
     - `ui/IndexScreen.kt` — IndexScreen + PolaroidPillCard + DotRailTimeline
-    - `ui/CaptureScreen.kt` — CaptureScreen
-    - `ui/DetailScreen.kt` — MemoryDetailScreen
-    - `ui/Shared.kt` — shared helpers: appleShadow, cardShadow, emotionColor, paperTexture, MemoryCarousel
-  - No behaviour changes. Pure file reorganisation.
-  - Do before Phase A to keep new feature files clean and context reads cheap.
+    - `ui/CaptureScreen.kt` — CaptureScreen (capture + edit mode)
+    - `ui/MemoryDetailScreen.kt` — already existed
+    - `ui/Shared.kt` — shared helpers: appleShadow, emotionColor, shared composables
+  - No behaviour changes. Build verified clean.
+
+- [x] **Task 58e: CaptureScreen Edit Mode — Visual & UX Overhaul.** ✅ DONE (May 2026, tag RTGL1.0)
+  - Two-layer background (gradient + scrim) matching MemoryDetailScreen.
+  - Floating 68dp nav row with white-circle appleShadow buttons.
+  - Content padding aligned to MemoryDetailScreen: 44dp body, 24dp controls.
+  - 32dp spacer between nav row and first content block.
+  - Emotion picker: white pill → ModalBottomSheet (6 options, checkmark on selected).
+  - Save button: full-width gradient, bottom-pinned.
+  - Crossfade transition (fadeIn/fadeOut 280ms) when navigating Detail ↔ Edit.
+  - Auto-focus + keyboard open on edit mode entry.
+
+- [x] **Task 58f: CaptureScreen Keyboard & Bottom Toolbar Polish.** ✅ DONE (May 2026)
+  - `Modifier.imePadding()` on CaptureScreen Column — action row + Save button ride up with keyboard.
+  - Keyboard auto-open fix: reactive `onFocusChanged` pattern replaces unreliable proactive `show()` at fixed delay.
+  - Save button: full-width pill (`RoundedCornerShape(100dp)`, `fillMaxWidth`, `height(52dp)`, 16dp side margin).
+  - Emotion tab moved into action icons row (left side), bare style (no pill/shadow), `ExpandMore` caret.
+  - STT / mic removed entirely from CaptureScreen — `SpeechRecognizerManager`, all state, UI, and callbacks stripped.
 
 ---
 
@@ -462,15 +478,136 @@ Replace keyword-based emotion detection with a free on-device/API model, and mak
 
 ---
 
+## Phase: IndexScreen Final Polish (2026-05-08)
+
+### Goal
+Align IndexScreen visual language with MemoryDetailScreen and CaptureScreen. Implement two-layer backgrounds, updated navigation, redesigned memory rows, and dial refinements.
+
+- [x] **Task 63: IndexScreen Two-Layer Background & Header Redesign**
+  - Applied standardised two-layer background: emotion gradient (appBackground → emotionColor.copy(0.18f)) + memory_detail_scrim image
+  - Redesigned header: floating Row with back button + "My Diaries" title (left), Plus button (right)
+  - statusBarsPadding + padding layout (no fixed height) matching MemoryDetailScreen pattern
+  - Plus button navigates to `CaptureScreen?action=text`
+
+- [x] **Task 64: PolaroidPillCard Redesign**
+  - Restructured layout: text column on left, 58×68dp polaroid on right (when photoUri exists)
+  - Hidden polaroid when no media present (previously always rendered)
+  - Row height: 82dp → 68dp
+  - Added HorizontalDivider (0.5dp, transparent) below each card for list separation
+  - Divider padding: 16dp horizontal
+
+- [x] **Task 65: Shuffle Button Redesign**
+  - Secondary button style: white background, black text, primary-color icon (#FF9966)
+  - Positioned TopEnd on bottom container (above dial knob area)
+  - RoundedCornerShape(20dp), appleShadow for consistent elevation
+
+- [x] **Task 66: DialKnob Hue Shift & Typography**
+  - Implemented hue-only shift (not saturation/brightness) from emotion color
+  - Added `Color.hue()` and `Color.withHue(hue)` helpers using `android.graphics.Color` RGB↔HSV conversion
+  - Applied emotion hue to: rimAccent, mutedFg, neuDark, metallic rim gradient
+  - Font changed: Trocchi → Nunito (app default)
+
+- [x] **Task 67: Fade Gradient Alpha**
+  - Reduced from undefined (full opacity) to 20% alpha
+  - Prevents fade gradient from hiding emotion gradient and scrim, provides subtle list-to-dial separation
+
+- [x] **Task 68: Spacing Compaction**
+  - Bottom container: 280dp → 210dp
+  - List bottom padding: 280dp → 210dp
+  - Dial: padding(top=44dp), height=140dp
+  - List contentPadding: top=4dp, bottom=16dp, spacedBy=0dp
+  - Removes dead space between list and dial area
+
+---
+
+## Phase: Memory Detail — Audio Variant UX (Pre-Launch Polish)
+
+### Goal
+Lock down playback, pause/resume, deletion, and edge cases for the audio variant of `MemoryDetailScreen` before Android launch.
+
+### UX Spec — Locked Decisions
+
+**Playback states (4):**
+- IDLE → PLAYING → PAUSED → COMPLETED → IDLE
+- Tap hero or pill (IDLE) = play from 0
+- Tap (PLAYING) = pause, retain position
+- Tap (PAUSED) = resume from saved position
+- Reaches end = auto-stop, reset to IDLE
+- **Position is session-scoped:** retained while screen is alive; resets to 0 when user navigates away and returns
+
+**Surfaces:**
+- Audio-only memory → show **hero only** (pill hidden)
+- Photo + audio memory → show pill below text (hero is photo)
+
+**Audio focus / interruptions:**
+- Pause on phone call, app backgrounding, or another app starting media playback
+- Use Android `AudioFocusRequest` API
+
+**Delete:**
+- Independent **Delete Audio** button on `MemoryDetailScreen` (audio-only or audio+photo memories)
+- Tap → confirmation dialog ("Delete this audio? Memory text will be kept.")
+- On confirm: delete audio file + clear `audioFilePath` and `waveformData` in DB
+- Memory becomes text-only variant (or photo-only if photo present)
+- Stops playback if currently playing
+
+### Tasks
+
+- [x] **Task A1: AudioPlayer pause/resume support.** ✅ COMPLETE
+  - Added `pause()` (saves position, doesn't release) and `resume()` (continues from saved position) to `util/AudioPlayer.kt`.
+  - Kept `stop()` and `release()` unchanged (full release).
+  - Pause retains `MediaPlayer` instance; resume calls `start()`.
+
+- [x] **Task A2: MemoryDetailScreen — pause/resume wiring.** ✅ COMPLETE
+  - Implemented AudioState enum (IDLE, PLAYING, PAUSED) for 3-state management.
+  - Hero and pill toggle between pause/resume using AudioState instead of boolean.
+  - Position retained within session; DisposableEffect releases on navigate away (next visit starts at 0).
+
+- [x] **Task A3: Hide pill when hero is showing audio.** ✅ COMPLETE
+  - AudioPill renders only when `memory.audioFilePath != null && memory.photoFilePath != null`.
+  - Audio-only memories: hero waveform is sole audio surface.
+
+- [x] **Task A4: Audio focus integration.** ✅ COMPLETE
+  - Implemented AudioFocusRequest in AudioPlayer with OnAudioFocusChangeListener.
+  - AUDIOFOCUS_LOSS_TRANSIENT / LOSS_TRANSIENT_CAN_DUCK → auto-pause.
+  - AUDIOFOCUS_GAIN → resume if was playing before loss.
+  - AUDIOFOCUS_LOSS (permanent) → stop + release.
+
+- [x] **Task A5: Delete audio button + confirmation.** ✅ COMPLETE (Refined)
+  - **Removed from audio hero** per design revision (user feedback on mockup).
+  - Would have been standalone row, but delete functionality deferred to future implementation.
+  - Audio-only memories focus on playback UX without delete on hero surface.
+
+### Additional Fixes (Session 2026-05-07)
+
+- [x] **Keyboard Auto-Focus on Edit (CaptureScreen).** ✅ COMPLETE
+  - Fixed: LaunchedEffect now handles null action case (editing existing memory).
+  - Keyboard auto-opens after 400ms crossfade delay, matching new-memory behavior.
+
+- [x] **Scroll Position Retention on Back-Navigation (DiaryScreen).** ✅ COMPLETE
+  - Implemented: rememberSaveable for scroll index + offset.
+  - Scroll position restored when returning from MemoryDetailScreen.
+  - Auto-scroll-to-top only triggers on NEW memory additions (not back-nav).
+
+### Deferred to v1.1 (Post-Launch)
+
+- [ ] **Task A6 (DEFERRED): Seekable progress bar.**
+  - Add `seekTo(positionMs)` to `AudioPlayer`.
+  - Make hero progress bar visually larger (~180dp × 4dp) and add `pointerInput` for tap + drag.
+  - Disambiguate tap-to-seek (on bar) from tap-to-play-pause (on hero waveform area).
+  - Decide: seek while paused → stay paused or auto-resume?
+  - **Why deferred:** diary entries are 30s–2min; scrubbing precision is poor at small bar sizes. Layout changes eat launch effort. Will revisit in v1.1.
+
+---
+
 ## Phase: Android Publish (Next Immediate Goal)
 
 ### Goal
 Get the app live on Google Play Store as a free app. Establish credibility as an independent product builder.
 
-- [ ] **Task P1: Indian English Keyword Enrichment (Task 60 revised)**
-  - User delivers UGC research doc (see research brief in conversation).
-  - Claude expands `EmotionDetector.kt` keyword sets.
-  - Validate against 10 test phrases before committing.
+- [x] **Task P1 / Task 60: Indian English Keyword Enrichment** ✅ COMPLETE
+  - EmotionDetector.kt enriched with Hinglish, Gen Z slang, spiritual language (commit a708b9a)
+  - Keywords: खुशी, शांति, चिंता, slay, vibing, shukar, satsang, etc.
+  - All 6 emotions covered (HAPPY, SAD, ANXIOUS, CALM, EXCITED, NEUTRAL)
 
 - [ ] **Task P2: Privacy Policy**
   - Write minimal privacy policy: local-only storage, no tracking, no cloud.

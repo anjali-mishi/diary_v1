@@ -19,13 +19,36 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.example.myapplication.ui.theme.trocchiFamily
+import com.example.myapplication.ui.theme.nunitoFamily
 import kotlinx.coroutines.launch
 import kotlin.math.*
 import kotlin.math.roundToInt
 
 private const val MIN_ROT = -2.618f
 private const val MAX_ROT =  2.618f
+
+private fun Color.hue(): Float {
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (red * 255).roundToInt().coerceIn(0, 255),
+        (green * 255).roundToInt().coerceIn(0, 255),
+        (blue * 255).roundToInt().coerceIn(0, 255),
+        hsv
+    )
+    return hsv[0]
+}
+
+private fun Color.withHue(hue: Float): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (red * 255).roundToInt().coerceIn(0, 255),
+        (green * 255).roundToInt().coerceIn(0, 255),
+        (blue * 255).roundToInt().coerceIn(0, 255),
+        hsv
+    )
+    hsv[0] = hue
+    return Color(android.graphics.Color.HSVToColor(hsv)).copy(alpha = alpha)
+}
 
 @Composable
 fun DialKnob(
@@ -34,6 +57,7 @@ fun DialKnob(
     snapCount: Int = 0,
     items: List<String> = emptyList(),
     backgroundColor: Color = Color(0xFFF5F2EB.toInt()),
+    sentimentColor: Color = Color(0xFF7A6250.toInt()),
     modifier: Modifier = Modifier,
 ) {
     val scope        = rememberCoroutineScope()
@@ -83,6 +107,7 @@ fun DialKnob(
             items           = items,
             textMeasurer    = textMeasurer,
             backgroundColor = backgroundColor,
+            sentimentColor  = sentimentColor,
         )
     }
 }
@@ -95,16 +120,18 @@ private fun DrawScope.drawDialScene(
     items: List<String>,
     textMeasurer: TextMeasurer,
     backgroundColor: Color,
+    sentimentColor: Color = Color(0xFF7A6250.toInt()),
 ) {
     val w = size.width
     val h = size.height
 
-    // ── Palette ───────────────────────────────────────────────────────────
-    val neuDark    = Color(0.38f, 0.27f, 0.14f, 1f)   // warm shadow tint
-    val surfaceUp  = Color(0xFFFCFAF6.toInt())          // --surface-raised
-    val surfaceDn  = Color(0xFFEDE6DA.toInt())          // window top (warm/sunken)
-    val rimAccent  = Color(0xFF7A6250.toInt())          // --rim  (focal label)
-    val mutedFg    = Color(0xFF9A8A78.toInt())          // --muted-foreground (side labels)
+    // ── Palette — hue shifted to match selected emotion ───────────────────
+    val emotionHue = sentimentColor.hue()
+    val neuDark    = Color(0.38f, 0.27f, 0.14f, 1f).withHue(emotionHue)
+    val surfaceUp  = Color(0xFFFCFAF6.toInt())
+    val surfaceDn  = Color(0xFFEDE6DA.toInt())
+    val rimAccent  = Color(0xFF7A6250.toInt()).withHue(emotionHue)
+    val mutedFg    = Color(0xFF9A8A78.toInt()).withHue(emotionHue)
 
     // ── Outer pill geometry ───────────────────────────────────────────────
     val pillH  = h * 0.76f
@@ -163,9 +190,9 @@ private fun DrawScope.drawDialScene(
         brush        = Brush.linearGradient(
             colorStops = arrayOf(
                 0.00f to Color(0xFFD8CDBC.toInt()),
-                0.22f to Color(0xFF705E44.toInt()),
-                0.50f to Color(0xFF483A28.toInt()),
-                0.78f to Color(0xFF806A4C.toInt()),
+                0.22f to Color(0xFF705E44.toInt()).withHue(emotionHue),
+                0.50f to Color(0xFF483A28.toInt()).withHue(emotionHue),
+                0.78f to Color(0xFF806A4C.toInt()).withHue(emotionHue),
                 1.00f to Color(0xFFE0D6C6.toInt()),
             ),
             start = Offset(bL - rimThick, bT - rimThick),
@@ -325,7 +352,7 @@ private fun DrawScope.drawDialScene(
                     val result = textMeasurer.measure(
                         text  = items[i],
                         style = TextStyle(
-                            fontFamily = trocchiFamily,
+                            fontFamily = nunitoFamily,
                             fontSize   = if (isFocal) 16.sp else 11.sp,
                             fontWeight = if (isFocal) FontWeight.SemiBold else FontWeight.Normal,
                             fontStyle  = if (isFocal) FontStyle.Italic else FontStyle.Normal,
