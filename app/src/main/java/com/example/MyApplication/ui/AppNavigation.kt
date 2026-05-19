@@ -53,6 +53,7 @@ import com.example.myapplication.data.database.AppDatabase
 import com.example.myapplication.data.repository.MemoryRepository
 import com.example.myapplication.ui.viewmodel.CaptureViewModel
 import com.example.myapplication.ui.viewmodel.DiaryViewModel
+import com.example.myapplication.util.OnboardingPrefs
 
 private const val TAG = "Diary.Navigation"
 
@@ -72,6 +73,7 @@ val LocalTopBarScrolled = compositionLocalOf<MutableState<Boolean>> {
 }
 
 enum class Screen {
+    Welcome,
     Diary,
     Capture,
     Index,
@@ -92,6 +94,10 @@ fun AppNavigation(modifier: Modifier = Modifier) {
     val diaryViewModel: DiaryViewModel = viewModel(
         factory = DiaryViewModel.Factory(repository)
     )
+
+    val startDest = remember {
+        if (OnboardingPrefs.hasSeenWelcome(context)) Screen.Diary.name else Screen.Welcome.name
+    }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -127,11 +133,25 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             ) {
                 NavHost(
                     navController = navController,
-                    startDestination = Screen.Diary.name,
+                    startDestination = startDest,
                     modifier = Modifier
                         .padding(innerPadding)
                         .fillMaxSize()
                 ) {
+                        composable(
+                            route = Screen.Welcome.name,
+                            exitTransition = { fadeOut(animationSpec = tween(400)) }
+                        ) {
+                            Log.d(TAG, "Navigated to: Welcome")
+                            WelcomeScreen(
+                                onContinue = {
+                                    OnboardingPrefs.markWelcomeSeen(context)
+                                    navController.navigate("${Screen.Capture.name}?action=text") {
+                                        popUpTo(Screen.Welcome.name) { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
                         composable(
                             route = Screen.Diary.name,
                             // Screen appears immediately (initialAlpha = 1f) but the scope's
@@ -208,7 +228,11 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                                 action = action,
                                 onNavigateBack = {
                                     Log.d(TAG, "CaptureScreen → back")
-                                    navController.popBackStack()
+                                    if (!navController.popBackStack()) {
+                                        navController.navigate(Screen.Diary.name) {
+                                            popUpTo(0) { inclusive = true }
+                                        }
+                                    }
                                 },
                                 viewModel = captureViewModel
                             )

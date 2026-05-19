@@ -41,22 +41,23 @@ UI (Screens.kt) → ViewModels → MemoryRepository → MemoryDao → Room DB
 - `photoFilePath` — path copied to internal storage via `util/ImageStorage.kt`
 - `emotionalTone` — string matching `EmotionDetector` output
 
-Room DB is version 2. The migration adds the `waveformData` column; it lives in `AppDatabase.kt`.
+Room DB is version 3. Migrations: v1→v2 adds `waveformData`, v2→v3 adds bookmarks/stickers/letters columns. Lives in `data/database/AppDatabase.kt`.
 
 ## Design System
 
 Defined in `design.md` and implemented across `ui/theme/`:
 - **Fonts**: Trocchi (display/headings), SF Pro Rounded (body)
+- **Primary color**: `Color(0xE0000000)` — black at 88% opacity. Used for all CTAs, icon tints, primary text.
 - **Aesthetic**: warm paper/scrapbook feel — avoid stark whites and flat colours
-- **Emotion colours** (`ui/theme/Color.kt`) drive card tinting, waveform colour, and text-hero gradients throughout `Screens.kt`. Changes to emotion colours must be consistent across all three `emotionColor` `when` blocks in `Screens.kt` (search for `emotionColor` — line numbers shift as file grows) plus the gradient block near `BentoMemoryCard`.
-- **STT colour**: `sttGreen = Color(0xFF43A047)` is defined locally in `CaptureScreen` (not in `Color.kt`) and used for the listening dot, mic button active state, and status text.
-- **Shadow helper**: `appleShadow()` modifier defined in `Screens.kt` — use it instead of raw `Modifier.shadow()` for the app's signature soft-shadow look.
+- **Emotion colours** (`ui/theme/Color.kt`) drive card tinting, waveform colour, and text-hero gradients. The `emotionColor()` helper in `ui/Shared.kt` maps emotion strings to colours — keep consistent across all usage sites.
+- **Shadow helper**: `appleShadow()` modifier defined in `ui/Shared.kt` — use it instead of raw `Modifier.shadow()` for the app's signature soft-shadow look.
 - Dark mode is intentionally disabled for the MVP (`forcedScheme = ColorScheme.Light` in `Theme.kt`).
 
 ## Project Documentation
 
 - `design.md` — micro design system (colours, typography, radii, elevation, glass effects)
 - `product.md` — product spec and feature requirements
-- `task.md` — phased task list (~49 tasks across 9 phases)
+- `task.md` — phased task list (Phases 1–14 + A + publish)
+- `launch_checklist.md` — pre-launch verification checklist with prioritized action items
 - `decisions.md` — architecture decision records
 - `progress_report.md` — completed work log and current state

@@ -1,17 +1,11 @@
 import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
-
-// Read HuggingFace API key from local.properties (never committed to VCS)
-val localProps = Properties().apply {
-    val f = rootProject.file("local.properties")
-    if (f.exists()) load(f.inputStream())
-}
-val huggingFaceApiKey: String = localProps.getProperty("HUGGINGFACE_API_KEY", "")
 
 android {
     namespace = "com.example.myapplication"
@@ -20,7 +14,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.myapplication"
+        applicationId = "com.memory.diary"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -28,16 +22,34 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "HUGGINGFACE_API_KEY", "\"$huggingFaceApiKey\"")
+    }
+
+    signingConfigs {
+        create("release") {
+            val propsFile = rootProject.file("local.properties")
+            if (propsFile.exists()) {
+                val localProps = Properties()
+                localProps.load(FileInputStream(propsFile))
+                val storePath = localProps.getProperty("RELEASE_STORE_FILE")
+                if (!storePath.isNullOrBlank()) {
+                    storeFile = file(storePath)
+                    storePassword = localProps.getProperty("RELEASE_STORE_PASSWORD", "")
+                    keyAlias = localProps.getProperty("RELEASE_KEY_ALIAS", "")
+                    keyPassword = localProps.getProperty("RELEASE_KEY_PASSWORD", "")
+                }
+            }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -48,6 +60,10 @@ android {
         compose = true
         buildConfig = true
     }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {

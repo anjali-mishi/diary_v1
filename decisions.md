@@ -127,7 +127,7 @@ Executing the specific soft, journal-like aesthetics defined in `design.md` requ
 
 * **Floating Nav Button Restyle (MemoryDetailScreen):**
   * *Previous:* Back and edit buttons used `Color.Black.copy(alpha = 0.18f)` translucent circles with `Color.White` icons — designed for overlay on dark hero photos but felt inconsistent on light text-only screens.
-  * *Resolution:* Buttons now use `Color.White` fill with `.appleShadow()` drop shadow and `Color(0xFF1C1C1E)` (near-black) icon tint. Matches the app's standard white-card + soft-shadow aesthetic (`appleShadow` is the canonical shadow helper throughout the codebase).
+  * *Resolution:* Buttons now use `Color.White` fill with `.appleShadow()` drop shadow and `Color(0xE0000000)` (primary black at 88% opacity) icon tint. Matches the app's standard white-card + soft-shadow aesthetic (`appleShadow` is the canonical shadow helper throughout the codebase).
 
 * **Text-Only Content Offset:**
   * *Issue:* On text-only memories (no photo or audio hero), the `LazyColumn` started from `y = 0`, placing the first line of body text directly behind the floating nav buttons.
@@ -208,7 +208,7 @@ Executing the specific soft, journal-like aesthetics defined in `design.md` requ
 - **Reference:** Established in `MemoryDetailScreen`, now canonical for the entire app. Documented in `design.md` under "App-Wide Screen System."
 
 ### Screen Header / Nav Row Standardisation
-- **Decision:** Every full-screen destination uses a floating 68dp nav row with `24dp` horizontal padding, white-circle icon buttons (`appleShadow()`), and `Color(0xFF1C1C1E)` icon tint. No `TopAppBar` or Scaffold `topBar` for detail and capture screens.
+- **Decision:** Every full-screen destination uses a floating 68dp nav row with `24dp` horizontal padding, white-circle icon buttons (`appleShadow()`), and `Color(0xE0000000)` (primary) icon tint. No `TopAppBar` or Scaffold `topBar` for detail and capture screens.
 - **Why:** Scaffold's `TopAppBar` injects `innerPadding.top`, which causes layout shift during shared-element transitions. Floating nav avoids this entirely. The white-circle style was already established on `MemoryDetailScreen`; extending it to `CaptureScreen` makes edit mode feel like a continuation of the detail view rather than a new context.
 - **Content padding rule:** Body content = `44dp` horizontal; UI controls = `24dp` horizontal. Consistent across CaptureScreen and MemoryDetailScreen.
 
@@ -298,3 +298,52 @@ Executing the specific soft, journal-like aesthetics defined in `design.md` requ
 - **Decision:** New onNavigateToCapture callback passed to IndexScreen; Plus button navigates to `CaptureScreen?action=text`.
 - **Why:** Consistency with DiaryScreen bottom sheet capture entry. Plus button is a discoverable, always-visible alternative to the bottom sheet on IndexScreen.
 - **Implementation:** Wired in AppNavigation at IndexScreen call site.
+
+## Pre-Launch Polish Sprint (2026-05-18)
+
+### Primary Color: Black at 88% Opacity
+- **Decision:** Replaced `SoftBlack = Color(0xFF2C2A29)` with `Color(0xE0000000)` (pure black at 88% opacity) as the app's primary color.
+- **Why:** Cleaner, more modern look. 88% opacity softens pure black slightly while maintaining readability. All hardcoded `Color(0xFF1C1C1E)` instances across WelcomeScreen, DiaryScreen, IndexScreen, MemoryDetailScreen replaced with the new primary value.
+- **Scope:** `SoftBlack` in `Color.kt` flows through to `primary`, `onBackground`, `onSurface`, `onSecondary` in the theme. All CTA backgrounds, icon tints, and text colors updated.
+
+### CaptureScreen Save Button: Primary Color (Not Gradient)
+- **Decision:** Save button fill changed from `GradientPeach → GradientPink` horizontal gradient to solid `Color(0xE0000000)` (primary color).
+- **Why:** Primary CTAs should use the primary color, not the brand gradient. Gradient is reserved for decorative/accent surfaces (waveform bars, sheet gradient strip). Solid primary is more authoritative for the main action button.
+- **Bottom padding:** Increased from 12dp to 28dp for breathing room.
+
+### DiaryScreen: Single Memory Centering
+- **Decision:** When only one memory exists, render it in a vertically/horizontally centered `Box` instead of the `LazyColumn`. When 2+ memories exist, use the standard stacked `LazyColumn`.
+- **Why:** A single card in a reversed lazy column floats near the top with empty space below — feels unfinished. Centering gives the first memory a hero moment and makes the empty-ish state feel intentional.
+
+### DiaryScreen: Hide Header/Pill on Empty State
+- **Decision:** The header (logo + "My Diaries") and bottom capture pill are hidden when `memories.isEmpty()`, allowing the WelcomeContent empty state to render cleanly.
+- **Why:** Both were rendering with high `zIndex` on top of the WelcomeContent, creating visual overlap. The welcome content has its own CTA ("Capture your first memory") so the pill bar is redundant.
+
+### CaptureScreen: Close Button Navigation Fix
+- **Decision:** `onNavigateBack` now falls back to `navController.navigate(Screen.Diary.name)` if `popBackStack()` returns false (empty back stack).
+- **Why:** When coming from WelcomeScreen, `popUpTo(Welcome) { inclusive = true }` removes Welcome from the stack before navigating to Capture. The close button's `popBackStack()` had nothing to pop, so nothing happened. Fallback ensures the user always lands somewhere.
+- **Bonus:** Close button now routes through `handleBack()` to show the "Discard changes?" dialog when content is dirty.
+
+### Welcome Screen Cards: Reduced Content
+- **Decision:** Shortened card headlines and body text; added `fontWeight = FontWeight.Normal` to card body text.
+- **Why:** Cards were too text-heavy for a welcome screen — they should hint at content, not display it. Body text appeared bolder than intended because the SF Pro Rounded font's default weight reads heavier at small sizes.
+
+## Welcome Screen — v1: Capture-Focused (May 2026, superseded)
+
+* **Decision:** Show a welcome screen on first launch with 3 variant sample cards (photo, audio, text-only) previewing memory types.
+* **Outcome:** Built and working, but identified a strategic gap — the welcome emphasized *capture mechanics* ("here are 3 memory types") rather than the app's actual value proposition: automatic emotion mapping and revisiting memories by emotional context.
+* **Status:** Superseded by v2 below. Code still in `WelcomeScreen.kt` — will be replaced.
+
+## Welcome Screen — v2: Emotion-First Onboarding (May 2026, planned)
+
+* **Decision:** Replace capture-focused welcome with an interactive demo that shows the core product loop: write → emotion detected → browse by feeling.
+* **Why the pivot:** The founder's vision is explicitly *not* "another journaling app." The differentiator is what happens *after* capture — automatic emotion mapping and emotional pattern browsing. The welcome should demonstrate this, not show input types.
+* **Design — single screen, one tap, zero scroll:**
+  1. Single sample memory card (text-only, neutral background) centered. Subtle "tap the card" hint.
+  2. User taps → emotion color (Calm) blooms behind card. Label: "Calm". Tagline: "You write. The app feels."
+  3. After 1s → card shrinks and slides down, morphing into a PolaroidPillCard. Section 2 auto-scrolls into view.
+  4. Section 2: Static DialKnob frozen on "Calm" + 2 pre-placed PolaroidPillCards (Happy, Excited). Morphed card joins as third pill.
+  5. Final tagline: "Revisit yourself by how you felt." CTA: "Capture your first moment."
+* **Principle:** Still not a tutorial. One tap, one reveal, one auto-transition. The interaction *is* the product explanation.
+* **Implementation:** Rewrite `WelcomeScreen.kt`. Reuse `DialKnob` (non-interactive preview), emotion colors, `appleShadow()`. Create lightweight static `PolaroidPillRow` (current `PolaroidPillCard` is private to IndexScreen and requires `Memory` object). Card-to-pill morph via `animateDpAsState`/`animateFloatAsState` + auto-scroll.
+* **Empty state:** DiaryScreen empty state will show a simplified version (possibly final state with DialKnob preview + CTA, skipping the tap interaction).

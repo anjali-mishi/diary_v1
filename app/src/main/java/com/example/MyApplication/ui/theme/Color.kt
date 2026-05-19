@@ -12,7 +12,7 @@ val Pink40 = Color(0xFF7D5260)
 
 // Memory App Core Aesthetic Colors
 val WarmPaperBackground = Color(0xFFFDF9F1)
-val SoftBlack = Color(0xFF2C2A29)
+val SoftBlack = Color(0xE0000000)
 val MediumWarmGrey = Color(0xFF8E8A86)
 val AppleCardWhite = Color(0xFFFFFFFF)
 
@@ -22,7 +22,7 @@ val EmotionSad = Color(0xFF6B9BD1)
 val EmotionAnxious = Color(0xFF9B8BC6)
 val EmotionCalm = Color(0xFF7FB5A0)
 val EmotionExcited = Color(0xFFFF9F66)
-val EmotionNeutral = Color(0xFFD4C5B9)
+val EmotionNeutral = Color(0xFF9E8D80)
 
 // Brand gradient (orange→pink, used on CTAs, waveform bars, mic/photo FABs)
 val GradientPeach = Color(0xFFFF9966)

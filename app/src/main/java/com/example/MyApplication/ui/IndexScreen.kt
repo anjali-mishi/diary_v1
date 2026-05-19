@@ -348,7 +348,7 @@ fun IndexScreen(
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF1C1C1E),
+                            tint = Color(0xE0000000),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -373,7 +373,7 @@ fun IndexScreen(
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Add memory",
-                        tint = Color(0xFF1C1C1E),
+                        tint = Color(0xE0000000),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -441,7 +441,7 @@ fun IndexScreen(
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF1C1C1E),
+                            tint = Color(0xE0000000),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -466,7 +466,7 @@ fun IndexScreen(
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Add memory",
-                        tint = Color(0xFF1C1C1E),
+                        tint = Color(0xE0000000),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -564,7 +564,7 @@ fun IndexScreen(
                             fontWeight = FontWeight.Bold,
                             fontSize   = 13.sp
                         ),
-                        color     = Color(0xFF1C1C1E)
+                        color     = Color(0xE0000000)
                     )
                 }
 

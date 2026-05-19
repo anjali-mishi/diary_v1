@@ -12,10 +12,19 @@
 #   public *;
 #}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Preserve line numbers for crash reports
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Keep Room entities
+-keep class com.example.myapplication.data.model.** { *; }
+
+# Keep speech recognizer util
+-keep class com.example.myapplication.util.SpeechRecognizerManager { *; }
+-keep class android.speech.** { *; }
+
+# Keep Room generated implementations (AppDatabase_Impl, DAOs)
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep @androidx.room.Database class * { *; }
+-keep class com.example.myapplication.data.database.** { *; }
+-keep class com.example.myapplication.data.dao.** { *; }

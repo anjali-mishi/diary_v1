@@ -195,11 +195,16 @@ enum class EmotionalTone {
 
 ## User Experience Flow
 
-### First-Time User (Empty State)
-**Flow:** Drop user straight into "Add first memory" screen
-- No onboarding tutorial
-- No examples or prompts
-- Clean slate to start journaling immediately
+### First-Time User (Welcome Screen)
+**Flow:** One-shot interactive demo on first launch — single tap, zero scroll, shows the core product loop
+1. Single sample memory card (text-only, neutral white) appears centered. Subtle "tap the card" hint below.
+2. User taps → emotion color (Calm green) blooms behind card. Label "Calm" fades in. Tagline: "You write. The app feels."
+3. After 1s → card shrinks and slides down, morphing into a PolaroidPillCard. Section 2 auto-scrolls into view.
+4. Section 2: Static DialKnob frozen on "Calm" + 2 pre-placed PolaroidPillCards (Happy, Excited). Morphed card joins as third pill.
+5. Final tagline: "Revisit yourself by how you felt." CTA: "Capture your first moment" → navigates to CaptureScreen.
+- **Also serves as empty state**: Simplified version shown in DiaryScreen when all memories are deleted (DialKnob preview + CTA, no tap interaction)
+- Tracked via SharedPreferences (`OnboardingPrefs`) — shown once, never again after CTA tap
+- Not a tutorial or walkthrough — the interaction IS the product explanation
 
 ### Adding a Memory
 1. Tap "+" primary floating actionbutton (always accessible)

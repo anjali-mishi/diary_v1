@@ -97,6 +97,9 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
@@ -161,9 +164,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import coil.compose.AsyncImage
 import com.example.myapplication.data.model.Memory
 import com.example.myapplication.ui.viewmodel.CaptureViewModel
@@ -273,18 +284,41 @@ fun CaptureScreen(
     var recordedWaveformJson by remember { mutableStateOf<String?>(null) }
     var captureAudioProgress by remember { mutableStateOf(0f) }
     var selectedEmotion by rememberSaveable { mutableStateOf<String?>(null) }
+    var showEmotionSheet by remember { mutableStateOf(false) }
+    val emotionSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val context = LocalContext.current
     val audioRecorder = remember { AudioRecorder(context) }
     val audioPlayer = remember { AudioPlayer(context) }
+    val speechMgr = remember { com.example.myapplication.util.SpeechRecognizerManager(context) }
+    var isListening by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
-    // Release player when user leaves screen
+    val showMicDeniedSnackbar: () -> Unit = {
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = "Microphone access needed to record voice memos",
+                actionLabel = "Settings"
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                )
+            }
+        }
+    }
+
+    // Release player and speech recognizer when user leaves screen
     androidx.compose.runtime.DisposableEffect(Unit) {
         onDispose {
             audioRecorder.stopRecording()
             audioPlayer.release()
+            speechMgr.release()
         }
     }
 
@@ -294,6 +328,8 @@ fun CaptureScreen(
             if (isGranted && !isRecording) {
                 audioRecorder.startRecording()
                 isRecording = true
+            } else if (!isGranted) {
+                showMicDeniedSnackbar()
             }
         }
     )
@@ -354,13 +390,62 @@ fun CaptureScreen(
                 focusRequester.requestFocus()
                 keyboardController?.show()
             }
+            "speech" -> {
+                delay(400)
+                focusRequester.requestFocus()
+                keyboardController?.show()
+                val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                if (permission == PackageManager.PERMISSION_GRANTED) {
+                    if (speechMgr.isAvailable) {
+                        speechMgr.onPartialResult = { partial ->
+                            val base = textContent.trimEnd()
+                            textContent = if (base.isEmpty()) partial else "$base $partial"
+                        }
+                        speechMgr.onFinalResult = { result ->
+                            if (result.isNotBlank()) {
+                                val base = textContent.trimEnd()
+                                textContent = if (base.isEmpty()) result else "$base $result"
+                            }
+                            isListening = false
+                        }
+                        speechMgr.onEndOfSpeech = { isListening = false }
+                        speechMgr.onError = { errorCode ->
+                            isListening = false
+                            val msg = when (errorCode) {
+                                android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
+                                android.speech.SpeechRecognizer.ERROR_NO_MATCH -> "Couldn't hear anything — try again"
+                                android.speech.SpeechRecognizer.ERROR_NETWORK,
+                                android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network error — speech recognition needs internet"
+                                android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Speech recognizer busy — try again"
+                                android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission needed"
+                                else -> "Speech recognition failed (error $errorCode)"
+                            }
+                            scope.launch { snackbarHostState.showSnackbar(msg) }
+                        }
+                        isListening = true
+                        speechMgr.startListening()
+                    } else {
+                        scope.launch { snackbarHostState.showSnackbar("Speech recognition not available on this device") }
+                    }
+                } else {
+                    if (ActivityCompat.shouldShowRequestPermissionRationale(context as android.app.Activity, Manifest.permission.RECORD_AUDIO)) {
+                        showMicDeniedSnackbar()
+                    } else {
+                        recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                }
+            }
             "voice" -> {
                 val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
                 if (permission == PackageManager.PERMISSION_GRANTED) {
                     audioRecorder.startRecording()
                     isRecording = true
                 } else {
-                    recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    if (ActivityCompat.shouldShowRequestPermissionRationale(context as android.app.Activity, Manifest.permission.RECORD_AUDIO)) {
+                        showMicDeniedSnackbar()
+                    } else {
+                        recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
                 }
             }
             "image" -> {
@@ -401,6 +486,15 @@ fun CaptureScreen(
                     current + (targets[i] - current) * 0.18f
                 }
                 recordingSeconds = ((System.currentTimeMillis() - startTime) / 1000).toInt()
+                if (recordingSeconds >= 5 * 60) {
+                    recordedWaveformJson = "[${amplitudeSamples.joinToString(",")}]"
+                    recordedAudioUri = audioRecorder.stopRecording()
+                    isRecording = false
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Maximum recording time reached")
+                    }
+                    break
+                }
                 delay(100)
             }
         }
@@ -435,6 +529,54 @@ fun CaptureScreen(
                 }
             }
         )
+    }
+
+    // ─── Emotion picker bottom sheet (edit mode only) ──────────────────────────
+    val emotionOptions = listOf("HAPPY", "SAD", "ANXIOUS", "CALM", "EXCITED", "NEUTRAL")
+    if (showEmotionSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showEmotionSheet = false },
+            sheetState = emotionSheetState,
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            Column(modifier = Modifier.padding(bottom = 32.dp)) {
+                emotionOptions.forEach { tone ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                selectedEmotion = tone
+                                showEmotionSheet = false
+                            }
+                            .padding(horizontal = 24.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = emotionEmoji(tone),
+                                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 22.sp)
+                            )
+                            Text(
+                                text = emotionLabel(tone),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                        if (selectedEmotion == tone) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Selected",
+                                tint = emotionColor(tone),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // ─── Dynamic background ────────────────────────────────────────────────────
@@ -610,7 +752,7 @@ fun CaptureScreen(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                    IconButton(onClick = { onNavigateBack() }) {
+                    IconButton(onClick = { handleBack() }) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
@@ -778,15 +920,41 @@ fun CaptureScreen(
                     }
                 }
 
-                // Media icons: audio + photo
+                // Action row: emotion tab (edit only) + media icons
                 androidx.compose.foundation.layout.Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp)
                         .padding(bottom = 10.dp),
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End,
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Emotion tab — only in edit mode
+                    if (memoryId != null) {
+                        Row(
+                            modifier = Modifier.clickable { showEmotionSheet = true },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = emotionEmoji(selectedEmotion),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp)
+                            )
+                            Text(
+                                text = emotionLabel(selectedEmotion),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ExpandMore,
+                                contentDescription = "Change emotion",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(1.dp))
+                    }
                     androidx.compose.foundation.layout.Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -800,7 +968,11 @@ fun CaptureScreen(
                                     audioRecorder.startRecording()
                                     isRecording = true
                                 } else {
-                                    recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                    if (ActivityCompat.shouldShowRequestPermissionRationale(context as android.app.Activity, Manifest.permission.RECORD_AUDIO)) {
+                                        showMicDeniedSnackbar()
+                                    } else {
+                                        recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                    }
                                 }
                             },
                         contentAlignment = Alignment.Center
@@ -843,25 +1015,26 @@ fun CaptureScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .padding(bottom = 12.dp)
+                        .padding(bottom = 28.dp)
                         .height(52.dp)
                         .then(if (hasContent) Modifier.appleShadow(100.dp) else Modifier)
                         .background(
                             if (hasContent)
-                                Brush.horizontalGradient(listOf(GradientPeach, GradientPink))
+                                Color(0xE0000000)
                             else
-                                Brush.horizontalGradient(listOf(
-                                    Color.Gray.copy(alpha = 0.15f),
-                                    Color.Gray.copy(alpha = 0.15f)
-                                )),
+                                Color.Gray.copy(alpha = 0.15f),
                             RoundedCornerShape(100.dp)
                         )
                         .then(
                             if (hasContent) Modifier.clickable {
                                 viewModel.saveMemory(
                                     textContent, selectedPhotoUri, recordedAudioUri,
-                                    recordedWaveformJson, selectedEmotion
-                                ) { onNavigateBack() }
+                                    recordedWaveformJson, selectedEmotion,
+                                    onSuccess = { onNavigateBack() },
+                                    onError = { msg ->
+                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    }
+                                )
                             } else Modifier
                         ),
                     contentAlignment = Alignment.Center
@@ -876,5 +1049,12 @@ fun CaptureScreen(
 
             }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 96.dp)
+        )
     }
 }

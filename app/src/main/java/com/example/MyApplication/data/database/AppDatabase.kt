@@ -31,7 +31,7 @@ private val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
-@Database(entities = [Memory::class], version = 3, exportSchema = false)
+@Database(entities = [Memory::class], version = 3, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun memoryDao(): MemoryDao
 

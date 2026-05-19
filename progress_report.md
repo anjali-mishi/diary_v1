@@ -171,6 +171,15 @@ The `IndexScreen` was fully redesigned from a bento/timeline grid into a **senti
 
 ---
 
+### 🎉 Welcome Screen — First Launch Experience (May 2026)
+
+*   **One-shot welcome screen** added as the app's first-launch entry point. Three sample memory cards (chai with Mom / river walk / good news) fade in with staggered animation, each with slight rotation and frosted glass backgrounds tinted by emotion color (Happy, Calm, Excited).
+*   App logo + tagline ("For the moments too small to remember, too big to forget.") fade in after cards, followed by a gradient CTA pill ("Capture your first moment").
+*   `OnboardingPrefs.kt` tracks first-launch state via SharedPreferences. `AppNavigation.kt` uses a conditional `startDestination` — Welcome on first launch, Diary on all subsequent opens. CTA navigates to DiaryScreen with `popUpTo(Welcome) { inclusive = true }`.
+*   Three-layer background system (`bg_base`, `bg_circles`, `bg_scrim`) gives the welcome screen visual depth distinct from the main app screens.
+
+---
+
 ## 3. The Path Forward (Current Objective)
 
 **Phases 1–14, all post-phase polish, and the IndexScreen sentinel dial redesign are complete.**
@@ -299,6 +308,92 @@ Aligned IndexScreen visual language with the rest of the app — applied the sam
 - Continuously save current scroll position via LaunchedEffect
 - Changed auto-scroll-to-top logic: only triggers on NEW memory additions, not on back-nav
 - Users now return to their last scroll position when exiting MemoryDetailScreen
+
+### Welcome Screen v1 (2026-05-17) — Superseded
+
+Built a capture-focused welcome screen with 3 variant sample cards (photo, audio, text-only), white gradient overlay, Inter 36sp gradient tagline, and CTA. Code is in `WelcomeScreen.kt` but will be replaced by v2.
+
+### Welcome Screen v2 — Emotion-First Onboarding (2026-05-18, planned)
+
+**Strategic pivot:** Identified that the v1 welcome told users "here are 3 memory types" but said nothing about the app's actual differentiator — automatic emotion mapping and browsing memories by how you felt. The founder's positioning: "I wasn't trying to build another journaling app. I was more interested in what happens after a memory is captured."
+
+**New design — single tap, zero scroll:**
+1. Single memory card (neutral white) centered → user taps → emotion color blooms + "Calm" label
+2. Card auto-morphs into a PolaroidPillCard and slides down into a DialKnob section
+3. DialKnob (static, "Calm") with 2 pre-placed pills (Happy, Excited) + the morphed card joining as third
+4. Final tagline + CTA fade in
+
+**What this communicates:** "You write → app detects emotion → you browse by feeling." The entire product loop in one interaction.
+
+**Status:** Plan documented in `task.md` (Task P0-v2), decision recorded in `decisions.md`. Implementation is next session's priority.
+
+---
+
+### 🔧 Pre-Launch Polish Sprint (2026-05-18)
+
+**Primary Color Overhaul:**
+- `SoftBlack` updated from `Color(0xFF2C2A29)` to `Color(0xE0000000)` (black #000000 at 88% opacity) — flows through `primary`, `onBackground`, `onSurface`, `onSecondary` in theme
+- All hardcoded `Color(0xFF1C1C1E)` replaced across WelcomeScreen, DiaryScreen, IndexScreen, MemoryDetailScreen
+- CaptureScreen Save button changed from peach-pink gradient to solid primary color
+
+**DiaryScreen Fixes:**
+- Header + bottom pill hidden when `memories.isEmpty()` — WelcomeContent empty state now renders cleanly without overlap
+- Single memory centering: when only 1 memory exists, card renders in a centered Box instead of LazyColumn; shifts to stacked layout on 2+ memories
+
+**CaptureScreen Fixes:**
+- Close button navigation: falls back to Diary if `popBackStack()` fails (fixes broken close after Welcome → Capture flow)
+- Close button now routes through `handleBack()` to show discard dialog when content is dirty
+- Save button bottom padding increased from 12dp to 28dp
+
+**Welcome Screen Polish:**
+- Card content shortened (headlines + body text reduced)
+- Body text set to `FontWeight.Normal` (was inheriting bolder default from SF Pro Rounded)
+
+**Documentation:**
+- Created `launch_checklist.md` with prioritized pre-launch action items (blocker: release signing, high: portrait lock + mic permission feedback)
+
+---
+
+### 🚀 Pre-Launch Checklist Sprint (2026-05-18)
+
+Resolved all code-level items from `launch_checklist.md`. App is now build-ready for release.
+
+**Blockers Resolved:**
+- Portrait lock: `screenOrientation="portrait"` in `AndroidManifest.xml`
+- ApplicationId: renamed from `com.example.myapplication` to `com.memory.diary`
+- Release signing: `signingConfigs { release }` reading from `local.properties`, R8 minification + resource shrinking enabled, ProGuard keep rules for Room entities + line numbers. `.gitignore` updated for `*.jks`/`*.keystore`.
+
+**Permission UX:**
+- `RECORD_AUDIO` requested upfront on first app launch in `MainActivity.onCreate()` via `ActivityResultContracts.RequestPermission()`
+- If denied and user later taps mic in CaptureScreen: snackbar with "Settings" action opens system app settings page
+- `SnackbarHostState` + `SnackbarHost` added to CaptureScreen (raw Box layout, no Scaffold)
+
+**Recording & Storage Safety:**
+- 5-minute hard cap: `setMaxDuration(300000)` on MediaRecorder + UI-side auto-stop in the amplitude polling loop with snackbar notification
+- Storage-full feedback: `CaptureViewModel.saveMemory()` now accepts `onError` callback. Photo copy failure (null return from `ImageStorage`) triggers user-facing snackbar
+- `AudioRecorder.stopRecording()` now deletes corrupt files on exception instead of returning a path to a broken `.m4a`
+
+**Photo Compression:**
+- `ImageStorage.copyToInternalStorage()` rewritten: decode with `BitmapFactory` → downsample via `inSampleSize` (max 2048px longest edge for OOM safety) → `Bitmap.compress(JPEG, 80)`. Fallback to raw copy if decode fails.
+
+**Database & Cleanup:**
+- Schema export enabled (`exportSchema = true` in `@Database`), KSP `room.schemaLocation` configured, v3 JSON generated at `app/schemas/`
+- Orphaned audio cleanup: `MainActivity.onCreate()` launches a background coroutine that scans `filesDir/audio_memos/` and deletes files not referenced in DB via new `MemoryDao.getAllAudioFilePaths()` query
+
+**Decisions:**
+- `allowBackup` kept `true` — diary data survives uninstall/reinstall (user decision)
+- Welcome Screen v1 is final — P0-v2 (emotion-first onboarding) removed from scope
+
+**Documentation:**
+- `launch_checklist.md` updated with completion status
+- `task.md`: P0-v2 removed, Task P1.5 (pre-launch checklist) added and marked complete
+
+**Remaining before Play Store submission:**
+1. Generate release keystore + add credentials to `local.properties`
+2. Privacy policy (Task P2)
+3. Play Store listing + screenshots (Task P3)
+4. QA on real devices including Android 15+ (Task P4)
+5. Build release APK + submit (Task P5)
 
 ---
 - Phases B, C, D, E — post-launch roadmap unchanged

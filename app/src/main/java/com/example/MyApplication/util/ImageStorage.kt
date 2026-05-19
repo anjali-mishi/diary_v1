@@ -1,6 +1,8 @@
 package com.example.myapplication.util
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import java.io.File
@@ -28,9 +30,26 @@ object ImageStorage {
             val photoDir = File(context.filesDir, "photos").also { it.mkdirs() }
             val destFile = File(photoDir, "${UUID.randomUUID()}.jpg")
 
-            context.contentResolver.openInputStream(uri)?.use { input ->
+            val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
+
+            var sampleSize = 1
+            val maxEdge = maxOf(opts.outWidth, opts.outHeight)
+            while (maxEdge / sampleSize > 2048) sampleSize *= 2
+
+            val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+            val bitmap = context.contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input, null, decodeOpts)
+            }
+
+            if (bitmap != null) {
                 FileOutputStream(destFile).use { output ->
-                    input.copyTo(output)
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, output)
+                }
+                bitmap.recycle()
+            } else {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(destFile).use { output -> input.copyTo(output) }
                 }
             }
             Log.i(TAG, "copyToInternalStorage: success → ${destFile.absolutePath}")

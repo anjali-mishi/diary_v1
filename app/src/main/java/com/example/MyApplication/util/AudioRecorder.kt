@@ -31,6 +31,12 @@ class AudioRecorder(private val context: Context) {
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             setOutputFile(currentOutputFile?.absolutePath)
+            setMaxDuration(5 * 60 * 1000)
+            setOnInfoListener { _, what, _ ->
+                if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) {
+                    Log.i(TAG, "startRecording: max duration (5 min) reached")
+                }
+            }
 
             try {
                 prepare()
@@ -54,6 +60,8 @@ class AudioRecorder(private val context: Context) {
             Log.i(TAG, "stopRecording: done — file=${currentOutputFile?.absolutePath}")
         } catch (e: Exception) {
             Log.e(TAG, "stopRecording: error — ${e.message}", e)
+            currentOutputFile?.delete()
+            currentOutputFile = null
         } finally {
             recorder = null
         }

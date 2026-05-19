@@ -36,7 +36,7 @@ Every screen has a floating header row at the top. Spec (applies to CaptureScree
 | Horizontal padding | `24dp` |
 | Top inset | `statusBarsPadding()` on the parent Box |
 | Title typography | `titleMedium`, nunitoFamily (or Trocchi for display-emphasis screens) |
-| Icon buttons | White circle fill, `appleShadow()`, near-black `Color(0xFF1C1C1E)` icon tint, `40dp` size |
+| Icon buttons | White circle fill, `appleShadow()`, primary black `Color(0xE0000000)` icon tint, `40dp` size |
 | Close/Back button | `Icons.Default.Close` or `Icons.Default.ArrowBack`, same circle style |
 
 - The nav row is floating (not in a `TopAppBar` / Scaffold), so `contentWindowInsets = 0` on the parent Scaffold.
@@ -69,7 +69,7 @@ The action row sits between the text field and the Save button. Layout:
 Full-width pill button at the bottom of every capture/edit surface:
 - `fillMaxWidth()`, `padding(horizontal = 16dp)`, `height(52dp)`
 - `RoundedCornerShape(100dp)` — full pill
-- Gradient fill: `GradientPeach → GradientPink` (horizontal) when content exists; flat grey at 15% alpha when empty
+- Solid fill: `Color(0xE0000000)` (black at 88% opacity — primary color) when content exists; flat grey at 15% alpha when empty
 - `appleShadow(100dp)` when active
 
 ---
@@ -91,7 +91,7 @@ Full-width pill button at the bottom of every capture/edit surface:
 ### Base Colors
 *   **App Background:** `#FDF9F1` (Warm paper)
 *   **Memory Card Background:** `#FEFCF7` (Warm off-white — slightly warmer than pure white, matches the paper texture overlay)
-*   **Primary Text:** `#2C2A29` (Soft black)
+*   **Primary Text / Primary CTA fill:** `#000000` at 88% opacity (`Color(0xE0000000)`)
 *   **Secondary / Hint Text:** Medium warm grey (e.g., `#8E8A86`)
 *   **Accent / Primary Brand Gradient (Interactive elements):** `#FF9966` → `#FF6699` (soft orange → soft pink, left-to-right or top-to-bottom as context demands).
     - Applied to: "Save memory" button fill, FABs, waveform bars, gradient strip above bottom sheet, action chips active states, and any other primary interactive surface.
@@ -131,7 +131,8 @@ Using the full color as a solid block background is forbidden (see note below). 
 ## Memory Cards
 
 ### Feed Layout (DiaryScreen)
-*   Single-column `LazyColumn` with `reverseLayout = true` — newest memory sits at the **visual bottom**; user scrolls downward to reach older memories.
+*   **Single memory:** Rendered in a centered `Box` (vertically and horizontally centered on screen) — not in the LazyColumn. Gives the first entry a hero feel.
+*   **Two or more memories:** `LazyColumn` with `reverseLayout = true` — newest memory sits at the **visual bottom**; user scrolls downward to reach older memories.
 *   **Width:** Each card is **70% of screen width**, centred within **24dp horizontal margins**.
 *   **Alternating alignment:** Even-index cards pin to the **left** (`CenterStart`); odd-index cards pin to the **right** (`CenterEnd`).
 *   **Stacked overlap:** Cards overlap the one below by **60dp** (negative `spacedBy`). A `zIndex` ladder ensures newer cards always render on top of older ones.

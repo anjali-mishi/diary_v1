@@ -25,4 +25,7 @@ interface MemoryDao {
 
     @Delete
     fun deleteMemory(memory: Memory): Int
+
+    @Query("SELECT audioFilePath FROM memories WHERE audioFilePath IS NOT NULL")
+    fun getAllAudioFilePaths(): List<String>
 }

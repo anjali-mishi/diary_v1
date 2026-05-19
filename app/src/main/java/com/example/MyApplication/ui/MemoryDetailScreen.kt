@@ -283,7 +283,7 @@ fun MemoryDetailScreen(
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
                     contentDescription = "Back",
-                    tint = Color(0xFF1C1C1E),
+                    tint = Color(0xE0000000),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -298,7 +298,7 @@ fun MemoryDetailScreen(
                 Icon(
                     imageVector = Icons.Default.Edit,
                     contentDescription = "Edit memory",
-                    tint = Color(0xFF1C1C1E),
+                    tint = Color(0xE0000000),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -458,7 +458,7 @@ internal fun AudioHeroSection(
                 val barH = frac * size.height
                 val x = i * (barW + gap)
                 val y = (size.height - barH) / 2f
-                val barColor = if (i < playedBarIndex) Color(0xFF1C1C1E) else Color.White
+                val barColor = if (i < playedBarIndex) Color(0xE0000000) else Color.White
                 drawRoundRect(
                     color = barColor,
                     topLeft = Offset(x, y),
@@ -488,7 +488,7 @@ internal fun AudioHeroSection(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .size(60.dp)
-                    .background(Color(0xFF1C1C1E), CircleShape)
+                    .background(Color(0xE0000000), CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,

@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.myapplication.data.model.Memory
 import com.example.myapplication.data.repository.MemoryRepository
 import com.example.myapplication.util.ImageStorage
-import com.example.myapplication.util.analyzeSentiment
+import com.example.myapplication.util.EmotionDetector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -46,7 +46,8 @@ class CaptureViewModel(
         audioUri: String? = null,
         waveformData: String? = null,
         emotionOverride: String? = null,
-        onSuccess: () -> Unit
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit = {}
     ) {
         Log.d(TAG, "saveMemory: textLen=${textContent.length}, hasPhoto=${photoUri != null}, hasAudio=${audioUri != null}, hasWaveform=${waveformData != null}, emotionOverride=$emotionOverride")
 
@@ -65,6 +66,14 @@ class CaptureViewModel(
             }
             Log.d(TAG, "saveMemory: persistedPhotoPath=$persistedPhotoPath")
 
+            if (photoUri != null && persistedPhotoPath == null) {
+                Log.w(TAG, "saveMemory: photo copy failed — storage may be full")
+                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                    onError("Couldn't save photo — storage may be full")
+                }
+                return@launch
+            }
+
             // Auto-generate title from first line of text, or use default
             val title = textContent.lines().firstOrNull { it.isNotBlank() }?.take(50)
                 ?: if (persistedPhotoPath != null) "A photo memory"
@@ -73,14 +82,8 @@ class CaptureViewModel(
             Log.d(TAG, "saveMemory: generated title='$title'")
 
             // Use user-selected emotion if provided, otherwise auto-detect
-            val sentiment = if (emotionOverride != null) {
-                Log.d(TAG, "saveMemory: using emotion override=$emotionOverride")
-                com.example.myapplication.util.SentimentResult(tone = emotionOverride, intensity = 1f, secondaryTone = null)
-            } else {
-                analyzeSentiment(textContent).also {
-                    Log.d(TAG, "saveMemory: tone=${it.tone} intensity=${it.intensity} secondary=${it.secondaryTone}")
-                }
-            }
+            val detectedTone = emotionOverride ?: EmotionDetector.detect(textContent)
+            Log.d(TAG, "saveMemory: tone=$detectedTone (override=${emotionOverride != null})")
 
             val isNew = existingId == null
             val memory = Memory(
@@ -91,9 +94,9 @@ class CaptureViewModel(
                 photoFilePath = persistedPhotoPath,
                 audioFilePath = audioUri,
                 waveformData = waveformData,
-                emotionalTone = sentiment.tone,
-                emotionIntensity = sentiment.intensity,
-                secondaryEmotionalTone = sentiment.secondaryTone,
+                emotionalTone = detectedTone,
+                emotionIntensity = 1f,
+                secondaryEmotionalTone = null,
                 createdAt = existingCreatedAt ?: now,
                 updatedAt = now
             )

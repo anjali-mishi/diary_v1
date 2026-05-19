@@ -604,10 +604,27 @@ Lock down playback, pause/resume, deletion, and edge cases for the audio variant
 ### Goal
 Get the app live on Google Play Store as a free app. Establish credibility as an independent product builder.
 
+- [x] **Task P0: Welcome Screen v1 (First Launch)** ✅ COMPLETE
+  - 3 variant sample cards, white gradient overlay, Inter gradient tagline, CTA
+  - `WelcomeScreen.kt` + `OnboardingPrefs.kt` + `AppNavigation.kt` wiring in place
+
 - [x] **Task P1 / Task 60: Indian English Keyword Enrichment** ✅ COMPLETE
   - EmotionDetector.kt enriched with Hinglish, Gen Z slang, spiritual language (commit a708b9a)
   - Keywords: खुशी, शांति, चिंता, slay, vibing, shukar, satsang, etc.
   - All 6 emotions covered (HAPPY, SAD, ANXIOUS, CALM, EXCITED, NEUTRAL)
+
+- [x] **Task P1.5: Pre-Launch Checklist** ✅ COMPLETE (2026-05-18)
+  - Portrait lock (`screenOrientation="portrait"` in manifest)
+  - ApplicationId renamed to `com.memory.diary`
+  - Release signing config (`signingConfigs`, R8 minify+shrink, ProGuard rules)
+  - Upfront mic permission on app launch + snackbar with "Settings" action on denial
+  - 5-minute recording cap (`setMaxDuration` + UI auto-stop)
+  - Storage-full error feedback (`onError` callback in `saveMemory`)
+  - Schema export enabled (Room v3 JSON at `app/schemas/`)
+  - Photo compression (80% JPEG, max 2048px, OOM-safe)
+  - Orphaned audio cleanup on app start
+  - `allowBackup` kept `true` (user decision)
+  - See `launch_checklist.md` for full details
 
 - [ ] **Task P2: Privacy Policy**
   - Write minimal privacy policy: local-only storage, no tracking, no cloud.

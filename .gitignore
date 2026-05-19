@@ -19,3 +19,7 @@ BGs/
 *.log
 log.txt
 build_log.txt
+
+# Release keystore
+*.jks
+*.keystore

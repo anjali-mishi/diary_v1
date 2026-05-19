@@ -91,6 +91,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -155,6 +156,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -337,7 +339,7 @@ fun DiaryScreen(
         val pillProgress by animateFloatAsState(if (isScrolled) 1f else 0f, spring(dampingRatio = 0.8f, stiffness = 400f), label = "pill")
         val pillWidth by animateDpAsState(if (isScrolled) 76.dp else (maxWidth - 48.dp), spring(dampingRatio = 0.8f, stiffness = 400f), label = "pillW")
         val pillOffsetX by animateDpAsState(if (isScrolled) (maxWidth / 2 - 62.dp) else 0.dp, spring(dampingRatio = 0.8f, stiffness = 400f), label = "pillX")
-        val pillBgColor = lerpColor(Color.White.copy(alpha = 0.36f), Color(0xFF1C1C1E), pillProgress)
+        val pillBgColor = lerpColor(Color.White.copy(alpha = 0.36f), Color(0xE0000000), pillProgress)
 
         // Base layer
         Image(
@@ -363,31 +365,33 @@ fun DiaryScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Empty state — centered in full screen, behind header and sheet
-        if (memories.isEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 32.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Your diary is empty.",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Tap below to capture your first memory.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-            }
+        // Empty state — shown when all memories are deleted
+        AnimatedVisibility(
+            visible = memories.isEmpty(),
+            enter = fadeIn(animationSpec = tween(600)),
+            exit = fadeOut(animationSpec = tween(300))
+        ) {
+            WelcomeContent(onContinue = { onNavigateToCapture("text") })
         }
 
         if (memories.isNotEmpty()) {
             val sorted = remember(memories) { memories.sortedByDescending { it.timestamp } }
+            if (sorted.size == 1) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    BentoMemoryCard(
+                        memory = sorted[0],
+                        cardIndex = 0,
+                        onClick = { onNavigateToDetail(sorted[0].id) },
+                        onLongClick = { memoryToEditOrDelete = sorted[0] },
+                        modifier = Modifier
+                            .fillMaxWidth(0.7f)
+                            .padding(horizontal = 24.dp)
+                    )
+                }
+            } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 state = listState,
@@ -399,7 +403,6 @@ fun DiaryScreen(
                 reverseLayout = true,
             ) {
                 itemsIndexed(sorted, key = { _, memory -> memory.id }) { index, memory ->
-                    // Earlier cards (lower index = newer) sit on top when reversed
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -416,10 +419,12 @@ fun DiaryScreen(
                     }
                 }
             }
+            }
         }
 
         // Header scrim — fades from semi-opaque at top to transparent, ensures logo readability
         val isDarkBg = bgIndex in darkBgIndices
+        if (memories.isNotEmpty()) {
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -549,6 +554,7 @@ fun DiaryScreen(
                     .size(24.dp)
             )
         }
+        } // end if (memories.isNotEmpty()) — hide header + pill on empty/welcome state
     }
 }
 
@@ -1086,7 +1092,7 @@ fun BentoMemoryCard(
                         .fillMaxWidth()
                         .height(101.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(audioEmotionColor.copy(alpha = 0.85f))
+                        .background(audioEmotionColor.copy(alpha = if (memory.emotionalTone == "NEUTRAL" || memory.emotionalTone == null) 0.77f else 0.57f))
                         .clickable {
                             if (isPlaying) { audioPlayer.stop(); isPlaying = false }
                             else { audioPlayer.playFile(memory.audioFilePath) { isPlaying = false }; isPlaying = true }
