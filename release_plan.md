@@ -32,7 +32,7 @@ Mark tasks `[x]` when complete. Add notes inline as needed.
   - Output: `app/build/outputs/apk/release/app-release.apk`
   - Fix any R8 / ProGuard errors that surface
 
-- [ ] **T4. Test release APK on emulator**
+- [x] **T4. Test release APK on emulator**
   - Install via `adb install` or drag-and-drop
   - Full flow: first-launch mic prompt → capture (text + photo + audio) → view → edit → delete → index → dial knob → 5-min recording cap → kill+reopen persistence
 
