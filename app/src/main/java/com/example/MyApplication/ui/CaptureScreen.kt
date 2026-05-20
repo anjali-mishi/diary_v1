@@ -41,6 +41,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.offset
@@ -296,6 +298,11 @@ fun CaptureScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val captureScrollState = rememberScrollState()
+
+    androidx.compose.runtime.LaunchedEffect(textContent) {
+        captureScrollState.animateScrollTo(captureScrollState.maxValue)
+    }
 
     val showMicDeniedSnackbar: () -> Unit = {
         scope.launch {
@@ -761,6 +768,13 @@ fun CaptureScreen(
                     }
                 }
 
+                // Scrollable content: image + audio + text field
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(captureScrollState)
+                ) {
+
                 // 32dp gap between nav and content — matches MemoryDetail content padding(top=32dp)
                 Spacer(modifier = Modifier.height(32.dp))
 
@@ -830,7 +844,7 @@ fun CaptureScreen(
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
+                        .heightIn(min = 150.dp)
                         .padding(horizontal = 44.dp)
                         .focusRequester(focusRequester)
                         .onFocusChanged { focusState ->
@@ -858,6 +872,8 @@ fun CaptureScreen(
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                } // end scrollable content Column
 
                 @Composable
                 fun CaptureChip(label: String, onClick: () -> Unit) {
