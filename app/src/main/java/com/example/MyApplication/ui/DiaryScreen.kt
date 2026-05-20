@@ -189,7 +189,6 @@ import com.example.myapplication.util.AudioPlayer
 import com.example.myapplication.util.AudioRecorder
 import com.example.myapplication.util.audioFileDuration
 
-import com.example.myapplication.util.SpeechRecognizerManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -337,8 +336,8 @@ fun DiaryScreen(
 
         // Pill morph animation values
         val pillProgress by animateFloatAsState(if (isScrolled) 1f else 0f, spring(dampingRatio = 0.8f, stiffness = 400f), label = "pill")
-        val pillWidth by animateDpAsState(if (isScrolled) 76.dp else (maxWidth - 48.dp), spring(dampingRatio = 0.8f, stiffness = 400f), label = "pillW")
-        val pillOffsetX by animateDpAsState(if (isScrolled) (maxWidth / 2 - 62.dp) else 0.dp, spring(dampingRatio = 0.8f, stiffness = 400f), label = "pillX")
+        val pillWidth by animateDpAsState(if (isScrolled) 72.dp else (maxWidth - 48.dp), spring(dampingRatio = 0.8f, stiffness = 400f), label = "pillW")
+        val pillOffsetX by animateDpAsState(if (isScrolled) (maxWidth / 2 - 60.dp) else 0.dp, spring(dampingRatio = 0.8f, stiffness = 400f), label = "pillX")
         val pillBgColor = lerpColor(Color.White.copy(alpha = 0.36f), Color(0xE0000000), pillProgress)
 
         // Base layer
@@ -479,7 +478,7 @@ fun DiaryScreen(
                 }
                 .offset { IntOffset(pillOffsetX.roundToPx(), 0) }
                 .width(pillWidth)
-                .height(76.dp)
+                .height(72.dp)
                 .shadow(12.dp, RoundedCornerShape(130.dp), spotColor = Color.Black.copy(alpha = 0.13f), ambientColor = Color.Black.copy(alpha = 0.13f))
                 .clip(RoundedCornerShape(130.dp))
                 .background(pillBgColor)
@@ -506,23 +505,20 @@ fun DiaryScreen(
                         .background(Color.White.copy(alpha = 0.9f))
                         .border(1.dp, Color.White, RoundedCornerShape(66.dp))
                         .clickable { onNavigateToCapture("text") }
-                        .padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "Add today's memory",
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp,
-                            lineHeight = 22.sp,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
                             letterSpacing = (-0.4).sp
                         ),
                         color = Color(0x99000000),
                         modifier = Modifier.weight(1f)
                     )
-                    Box(modifier = Modifier.size(44.dp).clickable { onNavigateToCapture("speech") }, contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Mic, contentDescription = "Speech to text", tint = Color(0x99000000), modifier = Modifier.size(24.dp))
-                    }
                 }
                 // Right pill — waveform + image
                 Row(
@@ -536,11 +532,11 @@ fun DiaryScreen(
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(modifier = Modifier.size(44.dp).clickable { onNavigateToCapture("voice") }, contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.GraphicEq, contentDescription = "Record voice memo", tint = Color(0x99000000), modifier = Modifier.size(24.dp))
+                    Box(modifier = Modifier.size(40.dp).clickable { onNavigateToCapture("voice") }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.GraphicEq, contentDescription = "Record voice memo", tint = Color(0x99000000), modifier = Modifier.size(22.dp))
                     }
-                    Box(modifier = Modifier.size(44.dp).clickable { onNavigateToCapture("image") }, contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Image, contentDescription = "Attach photo", tint = Color(0x99000000), modifier = Modifier.size(24.dp))
+                    Box(modifier = Modifier.size(40.dp).clickable { onNavigateToCapture("image") }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Image, contentDescription = "Attach photo", tint = Color(0x99000000), modifier = Modifier.size(22.dp))
                     }
                 }
             }

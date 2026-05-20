@@ -46,19 +46,18 @@ Mark tasks `[x]` when complete. Add notes inline as needed.
 
 ## Phase 3: Distribution Prep
 
-- [ ] **T6. Write privacy policy**
+- [x] **T6. Write privacy policy**
   - Cover: no data collection, mic permission purpose, no analytics/cloud, contact email
   - Host on GitHub Pages, Notion public page, or memory-site
 
-- [ ] **T7. Generate APK checksum**
-  - Run `shasum -a 256 app/build/outputs/apk/release/app-release.apk`
-  - Save output for website "verify download" section
+- [x] **T7. Generate APK checksum**
+  - `ba8959e5e3e4550277871fd707d039deb874cbd36264c9e033d3ee08b6a3530d`
 
 - [ ] **T8. Take screenshots on phone**
   - 3–5 screenshots covering: welcome, diary, capture, detail, index
   - Use real phone (not emulator) for authentic frame
 
-- [ ] **T9. Decide hosting**
+- [x] **T9. Decide hosting**
   - Option A: GitHub Releases only (simplest, free, trusted)
   - Option B: Memory-site hosts marketing, GitHub Releases hosts APK (recommended)
   - Option C: Self-host APK on memory-site

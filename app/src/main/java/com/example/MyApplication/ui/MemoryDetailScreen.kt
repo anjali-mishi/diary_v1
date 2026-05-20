@@ -201,7 +201,7 @@ fun MemoryDetailScreen(
             ) {
                 // Spacer reserves height for floating nav buttons so hero starts below them
                 item(key = "navSpacer") {
-                    Spacer(Modifier.statusBarsPadding().height(68.dp))
+                    Spacer(Modifier.statusBarsPadding().height(60.dp))
                 }
 
                 if (hasHero) {

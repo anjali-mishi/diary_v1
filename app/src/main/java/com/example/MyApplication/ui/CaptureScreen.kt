@@ -745,11 +745,11 @@ fun CaptureScreen(
                     .fillMaxSize()
                     .imePadding()
             ) {
-                // Top Bar — exactly 68dp tall: matches MemoryDetail navSpacer (12+44+12)
+                // Top Bar
                 androidx.compose.foundation.layout.Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(68.dp)
+                        .height(60.dp)
                         .padding(horizontal = 24.dp),
                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -783,7 +783,7 @@ fun CaptureScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(280.dp)
+                            .height(240.dp)
                             .padding(horizontal = 44.dp)
                             .padding(bottom = 16.dp)
                             .clip(RoundedCornerShape(12.dp))
@@ -817,8 +817,8 @@ fun CaptureScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(160.dp)
-                            .padding(horizontal = 16.dp)
+                            .height(140.dp)
+                            .padding(horizontal = 44.dp)
                             .padding(bottom = 16.dp)
                             .clip(RoundedCornerShape(12.dp))
                     ) {
@@ -874,67 +874,6 @@ fun CaptureScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 } // end scrollable content Column
-
-                @Composable
-                fun CaptureChip(label: String, onClick: () -> Unit) {
-                    androidx.compose.material3.SuggestionChip(
-                        onClick = onClick,
-                        label = { Text(text = label, style = MaterialTheme.typography.bodySmall) },
-                        modifier = Modifier.appleShadow(),
-                        shape = CircleShape,
-                        colors = androidx.compose.material3.SuggestionChipDefaults.suggestionChipColors(
-                            containerColor = Color.White
-                        ),
-                        border = null,
-                        elevation = androidx.compose.material3.SuggestionChipDefaults.suggestionChipElevation(0.dp)
-                    )
-                }
-
-                // Predictive suggestion chips — shown while typing, rule-based only
-                if (textContent.isNotBlank()) {
-                    val lower = textContent.trimEnd().lowercase()
-                    val suggestions = suggestionTriggers
-                        .firstOrNull { (trigger, _) -> lower.endsWith(trigger) }
-                        ?.second
-                        ?: emptyList()
-                    if (suggestions.isNotEmpty()) {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(horizontal = 24.dp),
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
-                        ) {
-                            items(suggestions, key = { it }) { suggestion ->
-                                CaptureChip(label = suggestion) {
-                                    val newText = textContent.trimEnd() + " " + suggestion
-                                    textContent = newText
-                                    textFieldSelection = TextRange(newText.length)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Quick starter chips — visible only when blank
-                if (textContent.isBlank()) {
-                    val starters = listOf(
-                        "Today I felt",
-                        "Something I'm grateful for",
-                        "A moment I want to remember",
-                        "I was surprised by"
-                    )
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(horizontal = 24.dp),
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
-                    ) {
-                        items(starters, key = { it }) { prompt ->
-                            CaptureChip(label = prompt) {
-                                textContent = prompt
-                                textFieldSelection = TextRange(prompt.length)
-                            }
-                        }
-                    }
-                }
 
                 // Action row: emotion tab (edit only) + media icons
                 androidx.compose.foundation.layout.Row(
@@ -1024,6 +963,78 @@ fun CaptureScreen(
                     }
                 } // end media icons Row
 
+                // Chip helper — 28dp visual, 36dp touch target, 8dp radius
+                @Composable
+                fun CaptureChip(label: String, onClick: () -> Unit) {
+                    Box(
+                        modifier = Modifier
+                            .height(36.dp)
+                            .clickable { onClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .height(28.dp)
+                                .appleShadow(8.dp)
+                                .background(Color.White, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xCC000000)
+                            )
+                        }
+                    }
+                }
+
+                // Predictive suggestion chips — shown while typing
+                if (textContent.isNotBlank()) {
+                    val lower = textContent.trimEnd().lowercase()
+                    val suggestions = suggestionTriggers
+                        .firstOrNull { (trigger, _) -> lower.endsWith(trigger) }
+                        ?.second
+                        ?: emptyList()
+                    if (suggestions.isNotEmpty()) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(horizontal = 24.dp),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                        ) {
+                            items(suggestions, key = { it }) { suggestion ->
+                                CaptureChip(label = suggestion) {
+                                    val newText = textContent.trimEnd() + " " + suggestion
+                                    textContent = newText
+                                    textFieldSelection = TextRange(newText.length)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Quick starter chips — visible only when blank
+                if (textContent.isBlank()) {
+                    val starters = listOf(
+                        "Today I felt",
+                        "Something I'm grateful for",
+                        "A moment I want to remember",
+                        "I was surprised by"
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(horizontal = 24.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    ) {
+                        items(starters, key = { it }) { prompt ->
+                            CaptureChip(label = prompt) {
+                                textContent = prompt
+                                textFieldSelection = TextRange(prompt.length)
+                            }
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // ─── Save button — full width, pill shape, edge to edge ──────────
@@ -1032,7 +1043,7 @@ fun CaptureScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .padding(bottom = 28.dp)
-                        .height(52.dp)
+                        .height(48.dp)
                         .then(if (hasContent) Modifier.appleShadow(100.dp) else Modifier)
                         .background(
                             if (hasContent)
